@@ -18,6 +18,19 @@ If your branch is open for a while, it's a good idea to merge the lastest change
 
 Merges into master should be done with a pull request on github so that there's a clear, atomic record of your changes and other people can glance at what you've changed (I doubt we'll go as far as proper reviews but at least things won't be changing underneath our feet). Feel free to [merge](https://help.github.com/articles/merging-a-pull-request/) your own PR before it gets stale.
 
+#### 1.1 Git tutorials
+
+Version control is an incredibly useful habit for developing, sharing and releasing code and git is an extremely powerful tool to do it.
+
+For people not familiar with git:
+
+- Basic intro: https://rogerdudler.github.io/git-guide/
+- In-depth learn-by-doing tutorial: https://www.codecademy.com/learn/learn-git
+
+For people not familiar with team source control workflows:
+
+- GitHub workflow: https://guides.github.com/introduction/flow/
+
 ### 2. Code standards
 
 tl;dr uniformity and readability is valuable
