@@ -42,8 +42,8 @@ run_flag = 1
 dt = 20
 # check timeout
 timeout = dt*3
-currentTime = datetime.now()
-lastTime = datetime.now()
+current_time = datetime.now()
+last_time = datetime.now()
 
 
 # 5% drive is deadband
@@ -61,7 +61,7 @@ driveGain = 3
 # this ratio determines the differential drive [0~1]
 bias = 0.5
 # this is the drive level allocated for turning [0~1] dynamically modulate
-diffGain = 0
+diff_gain = 0
 #  body turning gain
 h_pgain = 0.5
 # body turning gain
@@ -111,7 +111,7 @@ class ServoLoop (object):
 		self.m_prevError = error
 
 # define objects
-panLoop = ServoLoop(300, 500)
+pan_loop = ServoLoop(300, 500)
 tiltLoop = ServoLoop(500, 700)
 
 
@@ -138,7 +138,7 @@ def setup():
 
 
 def loop():
-        global blocks, throttle, diffGain, bias, currentTime, lastTime
+        global blocks, throttle, diff_gain, bias, current_time, last_time
 	# TODO python equivilant?
 	currentTime = datetime.now()
 	while not pixy.pixy_blocks_are_new() and run_flag:
@@ -184,11 +184,11 @@ def loop():
 			throttle = 0
 			diffGain = 1
 
-		panLoop.update(panError)
+		pan_loop.update(panError)
 		tiltLoop.update(tiltError)
 
 	
-	set_position_result = pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, panLoop.m_pos)
+	set_position_result = pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_loop.m_pos)
 	set_position_result = pixy.pixy_rcs_set_position(PIXY_RCS_TILT_CHANNEL, tiltLoop.m_pos)	
 
     # TODO implement this?
@@ -201,22 +201,22 @@ def loop():
 
 
 	# this is turning to left
-	if (panLoop.m_pos > PIXY_RCS_CENTER_POS) : 
+	if (pan_loop.m_pos > PIXY_RCS_CENTER_POS) :
 		# should be still int32_t
-		turnError = panLoop.m_pos - PIXY_RCS_CENTER_POS 
+		turnError = pan_loop.m_pos - PIXY_RCS_CENTER_POS
 		# <0.5 is turning left 
 		bias = - float(turnError) / float(PIXY_RCS_CENTER_POS) * h_pgain
 	# this is turning to right
-	elif (panLoop.m_pos < PIXY_RCS_CENTER_POS):
+	elif (pan_loop.m_pos < PIXY_RCS_CENTER_POS):
 		# should be still int32_t
-		turnError = PIXY_RCS_CENTER_POS - panLoop.m_pos 
+		turnError = PIXY_RCS_CENTER_POS - pan_loop.m_pos
 		# <0.5 is turning left 
 		bias = float(turnError) / float(PIXY_RCS_CENTER_POS) * h_pgain
 	drive()
 	return run_flag
 
 def drive():
-        global throttle, diffGain, bias
+        global throttle, diff_gain, bias
 	# synDrive is the drive level for going forward or backward (for both wheels)
 	synDrive= 0.5 * throttle * (1 - diffGain)
 	# Drive range is 0 - 1 so convert from 0 - 100 value
