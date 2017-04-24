@@ -49,15 +49,15 @@ last_time = datetime.now()
 # 5% drive is deadband
 deadband = 0.05
 # initialize the left wheel state
-LDrive = 0
+l_drive = 0
 # initialize the right wheel state
-RDrive = 0
+r_drive = 0
 # synchronous drive level
-synDrive = 0
+syn_drive = 0
 # this is the total drive level [-100~100] abs(throttle)<30 doesn't do much
 throttle = 0
 # this gain currently modulates the forward drive enhancement
-driveGain = 3
+drive_gain = 3
 # this ratio determines the differential drive [0~1]
 bias = 0.5
 # this is the drive level allocated for turning [0~1] dynamically modulate
@@ -67,8 +67,8 @@ h_pgain = 0.5
 # body turning gain
 h_dgain = 0
 # distance tracking target size: 16cm for orange cone width
-targetSize = 20
-targetSize2 = 10
+target_size = 20
+target_size2 = 10
 rr = rrb3.RRB3(9, 6)
 
 blocks = None
@@ -112,7 +112,7 @@ class ServoLoop (object):
 
 # define objects
 pan_loop = ServoLoop(300, 500)
-tiltLoop = ServoLoop(500, 700)
+tilt_loop = ServoLoop(500, 700)
 
 
 def setup():
@@ -139,7 +139,7 @@ def setup():
 def loop():
     global blocks, throttle, diff_gain, bias, current_time, last_time
     # TODO python equivilant?
-    currentTime = datetime.now()
+    current_time = datetime.now()
     while not pixy.pixy_blocks_are_new() and run_flag:
         pass
     count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
@@ -148,57 +148,57 @@ def loop():
         pixy.pixy_error(count)
         sys.exit(1)
     if count > 0:
-        lastTime = currentTime
+        last_time = current_time
         # if the largest block is the object to pursue, then prioritize this
         # behavior
         if (blocks[0].signature == 1):
-            panError = PIXY_X_CENTER - blocks[0].x
-            tiltError = blocks[0].y - PIXY_Y_CENTER
+            pan_error = PIXY_X_CENTER - blocks[0].x
+            tilt_error = blocks[0].y - PIXY_Y_CENTER
             # the target is far and we must advance
-            if (blocks[0].width < targetSize):
+            if (blocks[0].width < target_size):
                 # charge forward
                 throttle = 100  # charge forward
-                distError = targetSize - blocks[0].width
+                dist_error = target_size - blocks[0].width
                 # this is in float format
-                diffGain = 1 - driveGain * float(distError) / targetSize
+                diff_gain = 1 - drive_gain * float(dist_error) / target_size
 
             # the target is too close and we must back off
-            elif (blocks[0].width > targetSize):
+            elif (blocks[0].width > target_size):
                 # retreat
                 throttle = -100
-                distError = blocks[0].width - targetSize
+                dist_error = blocks[0].width - target_size
                 # this is in float format
-                diffGain = 1 - float(distError) / targetSize
+                diff_gain = 1 - float(dist_error) / target_size
 
         # this is line following algorithm
         elif (blocks[0].signature == 2):
-            panError = PIXY_X_CENTER - blocks[0].x
-            tiltError = blocks[0].y - PIXY_Y_CENTER
+            pan_error = PIXY_X_CENTER - blocks[0].x
+            tilt_error = blocks[0].y - PIXY_Y_CENTER
             # charge forward
             throttle = 100
-            diffGain = 0.3
+            diff_gain = 0.3
         # if none of the blocks make sense, just pause
         else:
-            panError = 0
-            tiltError = 0
+            pan_error = 0
+            tilt_error = 0
             throttle = 0
-            diffGain = 1
+            diff_gain = 1
 
-        pan_loop.update(panError)
-        tiltLoop.update(tiltError)
+        pan_loop.update(pan_error)
+        tilt_loop.update(tilt_error)
 
     set_position_result = pixy.pixy_rcs_set_position(
         PIXY_RCS_PAN_CHANNEL, pan_loop.m_pos)
     set_position_result = pixy.pixy_rcs_set_position(
-        PIXY_RCS_TILT_CHANNEL, tiltLoop.m_pos)
+        PIXY_RCS_TILT_CHANNEL, tilt_loop.m_pos)
 
 # TODO implement this?
     # if Pixy sees nothing recognizable, don't move.
-    time_difference = currentTime - lastTime
+    time_difference = current_time - last_time
     if (time_difference.total_seconds() >= timeout):
         print time_difference.total_seconds(), timeout
         throttle = 0
-        diffGain = 1
+        diff_gain = 1
 
     # this is turning to left
     if (pan_loop.m_pos > PIXY_RCS_CENTER_POS):
@@ -218,42 +218,42 @@ def loop():
 
 def drive():
     global throttle, diff_gain, bias
-    # synDrive is the drive level for going forward or backward (for both
+    # syn_drive is the drive level for going forward or backward (for both
     # wheels)
-    synDrive = 0.5 * throttle * (1 - diffGain)
+    syn_drive = 0.5 * throttle * (1 - diff_gain)
     # Drive range is 0 - 1 so convert from 0 - 100 value
-    LDrive = (synDrive + bias * diffGain * abs(throttle)) * \
+    l_drive = (syn_drive + bias * diff_gain * abs(throttle)) * \
         DRIVE_CONVERSION_FACTOR
-    RDrive = (synDrive - bias * diffGain * abs(throttle)) * \
+    r_drive = (syn_drive - bias * diff_gain * abs(throttle)) * \
         DRIVE_CONVERSION_FACTOR
-    LDirection = MOTOR_FORWARD
-    RDirection = MOTOR_FORWARD
+    l_direction = MOTOR_FORWARD
+    r_direction = MOTOR_FORWARD
     # Make sure that it is outside dead band and less than the max
-    if (LDrive > deadband):
-        LDirection = MOTOR_FORWARD
-        if (LDrive > MAX_MOTOR_SPEED):
-            LDrive = MAX_MOTOR_SPEED
-    elif (LDrive < -deadband):
-        LDirection = MOTOR_REVERSE
-        LDrive = -LDrive
-        if (LDrive > MAX_MOTOR_SPEED):
-            LDrive = MAX_MOTOR_SPEED
+    if (l_drive > deadband):
+        l_direction = MOTOR_FORWARD
+        if (l_drive > MAX_MOTOR_SPEED):
+            l_drive = MAX_MOTOR_SPEED
+    elif (l_drive < -deadband):
+        l_direction = MOTOR_REVERSE
+        l_drive = -l_drive
+        if (l_drive > MAX_MOTOR_SPEED):
+            l_drive = MAX_MOTOR_SPEED
     else:
-        LDrive = 0
-    if (RDrive > deadband):
-        RDirection = MOTOR_FORWARD
-        if (RDrive > MAX_MOTOR_SPEED):
-            RDrive = MAX_MOTOR_SPEED
-    elif (RDrive < -deadband):
-        RDirection = MOTOR_REVERSE
-        RDrive = -RDrive
-        if (RDrive > MAX_MOTOR_SPEED):
-            RDrive = MAX_MOTOR_SPEED
+        l_drive = 0
+    if (r_drive > deadband):
+        r_direction = MOTOR_FORWARD
+        if (r_drive > MAX_MOTOR_SPEED):
+            r_drive = MAX_MOTOR_SPEED
+    elif (r_drive < -deadband):
+        r_direction = MOTOR_REVERSE
+        r_drive = -r_drive
+        if (r_drive > MAX_MOTOR_SPEED):
+            r_drive = MAX_MOTOR_SPEED
     else:
-        RDrive = 0
+        r_drive = 0
 
     # Actually Set the motors
-    rr.set_motors(LDrive, LDirection, RDrive, RDirection)
+    rr.set_motors(l_drive, l_direction, r_drive, r_direction)
 
 
 if __name__ == '__main__':
