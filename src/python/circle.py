@@ -19,7 +19,7 @@ while True:
         print "Could not open serial device {}".format(serial_device)
         time.sleep(10)
 
-MAX_MOTOR_SPEED = 300#480
+MAX_MOTOR_SPEED = 300  # 480
 MIN_MOTOR_SPEED = -480
 
 run_flag = 1
@@ -32,7 +32,7 @@ current_time = datetime.now()
 last_time = datetime.now()
 
 
-#### defining motor function variables
+# defining motor function variables
 # 5% drive is deadband
 deadband = 0.05 * MAX_MOTOR_SPEED
 # total_drive is the total power available
@@ -95,7 +95,8 @@ def loop():
 
 
 def drive():
-    # syn_drive is the drive level for going forward or backward (for both wheels)
+    # syn_drive is the drive level for going forward or backward (for both
+    # wheels)
     syn_drive = advance * (1 - diff_drive) * throttle * total_drive
     left_diff = bias * diff_drive * throttle * total_drive
     right_diff = -bias * diff_drive * throttle * total_drive

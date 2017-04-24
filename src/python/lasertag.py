@@ -20,20 +20,20 @@ while True:
         print "Could not open serial device {}".format(serial_device)
         time.sleep(10)
 
-##### defining PixyCam sensory variables
+# defining PixyCam sensory variables
 PIXY_MIN_X = 0
 PIXY_MAX_X = 319
 PIXY_MIN_Y = 0
 PIXY_MAX_Y = 199
 
-PIXY_X_CENTER = ((PIXY_MAX_X-PIXY_MIN_X) / 2)
-PIXY_Y_CENTER = ((PIXY_MAX_Y-PIXY_MIN_Y) / 2)
+PIXY_X_CENTER = ((PIXY_MAX_X - PIXY_MIN_X) / 2)
+PIXY_Y_CENTER = ((PIXY_MAX_Y - PIXY_MIN_Y) / 2)
 PIXY_RCS_MIN_POS = 0
 PIXY_RCS_MAX_POS = 1000
-PIXY_RCS_CENTER_POS = ((PIXY_RCS_MAX_POS-PIXY_RCS_MIN_POS) / 2)
+PIXY_RCS_CENTER_POS = ((PIXY_RCS_MAX_POS - PIXY_RCS_MIN_POS) / 2)
 BLOCK_BUFFER_SIZE = 10
 
-##### defining PixyCam motor variables
+# defining PixyCam motor variables
 PIXY_RCS_PAN_CHANNEL = 0
 PIXY_RCS_TILT_CHANNEL = 1
 
@@ -42,7 +42,7 @@ PAN_DERIVATIVE_GAIN = 300
 TILT_PROPORTIONAL_GAIN = 500
 TILT_DERIVATIVE_GAIN = 400
 
-MAX_MOTOR_SPEED = 300#480
+MAX_MOTOR_SPEED = 300  # 480
 MIN_MOTOR_SPEED = -480
 
 run_flag = 1
@@ -55,7 +55,7 @@ current_time = datetime.now()
 last_time = datetime.now()
 last_fire = last_time
 
-#### defining motor function variables
+# defining motor function variables
 # 5% drive is deadband
 deadband = 0.05 * MAX_MOTOR_SPEED
 # total_drive is the total power available
@@ -77,12 +77,13 @@ h_pgain = 0.5
 # body turning d-gain
 h_dgain = 0
 
-#### defining state estimation variables
+# defining state estimation variables
 # pixyViewV = 47
 # pixyViewH = 75
 # pixyImgV = 400
 # pixyImgH = 640
-# pixel to visual angle conversion factor (only rough approximation) (pixyViewV/pixyImgV + pixyViewH/pixyImgH) / 2
+# pixel to visual angle conversion factor (only rough approximation)
+# (pixyViewV/pixyImgV + pixyViewH/pixyImgH) / 2
 pix2ang_factor = 0.117
 # reference object one is the pink earplug (~12mm wide)
 ref_size1 = 12
@@ -128,15 +129,17 @@ class ServoLoop(object):
     """
     Loop to set pixy pan position
     """
+
     def __init__(self, pgain, dgain):
         self.m_pos = PIXY_RCS_CENTER_POS
-        self.m_prev_error = 0x80000000L
+        self.m_prev_error = 0x80000000
         self.m_pgain = pgain
         self.m_dgain = dgain
 
     def update(self, error):
         if self.m_prev_error != 0x80000000:
-            vel = (error * self.m_pgain + (error - self.m_prev_error) * self.m_dgain) >> 10
+            vel = (error * self.m_pgain +
+                   (error - self.m_prev_error) * self.m_dgain) >> 10
             self.m_pos += vel
             if self.m_pos > PIXY_RCS_MAX_POS:
                 self.m_pos = PIXY_RCS_MAX_POS
@@ -178,10 +181,10 @@ def loop():
         code = ser.readline().rstrip()
         print("Got IR code {}".format(code))
         killed = True
-        #if code=="58391E4E" or code=="9DF14DB3" or code=="68B92":
+        # if code=="58391E4E" or code=="9DF14DB3" or code=="68B92":
         #    killed = True
         #
-        #if code=="E4F74E5A" or code=="A8FA9FFD":
+        # if code=="E4F74E5A" or code=="A8FA9FFD":
         #    killed = False
 
     if killed:
@@ -211,25 +214,28 @@ def loop():
             last_fire = current_time
 
         last_time = current_time
-        # if the largest block is the object to pursue, then prioritize this behavior
+        # if the largest block is the object to pursue, then prioritize this
+        # behavior
         if blocks[0].signature == 1:
             pan_error = PIXY_X_CENTER - blocks[0].x
-            object_dist = ref_size1 / (2 * math.tan(math.radians(blocks[0].width * pix2ang_factor)))
+            object_dist = ref_size1 / \
+                (2 * math.tan(math.radians(blocks[0].width * pix2ang_factor)))
             throttle = 0.5
             # amount of steering depends on how much deviation is there
             diff_drive = diff_gain * abs(float(pan_error)) / PIXY_X_CENTER
             dist_error = object_dist - target_dist
-            # this is in float format with sign indicating advancing or retreating
+            # this is in float format with sign indicating advancing or
+            # retreating
             advance = drive_gain * float(dist_error) / ref_dist
         # if Pixy sees a guideline, perform line following algorithm
         elif blocks[0].signature == 2:
-            pan_error = PIXY_X_CENTER-blocks[0].x
+            pan_error = PIXY_X_CENTER - blocks[0].x
             throttle = 1.0
             diff_drive = 0.6
             # amount of steering depends on how much deviation is there
             # diff_drive = diff_gain * abs(float(turn_error)) / PIXY_X_CENTER
             # use full available throttle for charging forward
-            advance = 1            
+            advance = 1
         # if none of the blocks make sense, just pause
         else:
             pan_error = 0
@@ -261,8 +267,10 @@ def loop():
     drive()
     return run_flag
 
+
 def drive():
-    # syn_drive is the drive level for going forward or backward (for both wheels)
+    # syn_drive is the drive level for going forward or backward (for both
+    # wheels)
     syn_drive = advance * (1 - diff_drive) * throttle * total_drive
     left_diff = bias * diff_drive * throttle * total_drive
     right_diff = -bias * diff_drive * throttle * total_drive
