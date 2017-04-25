@@ -6,9 +6,9 @@ from math import *
 #
 # [output] target x, y, w, h
 
-def chooseTarget(TargetList):
-    xList = [i_target.x for i_target in TargetList]
-    yList = [i_target.y for i_target in TargetList]
+def chooseTarget(TargetList，pixLocX, picLocY):
+    xList = [i_target.x - pixLocX for i_target in TargetList]
+    yList = [i_target.y - pixLocY for i_target in TargetList]
     wList = [i_target.w for i_target in TargetList]
     hList = [i_target.h for i_target in TargetList]
     areaList = [w*h for w, h in zip(wList, hList)]
