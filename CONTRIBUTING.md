@@ -22,6 +22,10 @@ Merges into master should be done with a pull request on github so that there's 
 
 Version control is an incredibly useful habit for developing, sharing and releasing code and git is an extremely powerful tool to do it.
 
+Chris' simple guide to git and workflows:
+
+- https://gist.github.com/clbarnes/a8b953f63e038b515c45616f622f106d
+
 For people not familiar with git:
 
 - Basic intro: https://rogerdudler.github.io/git-guide/
