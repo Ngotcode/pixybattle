@@ -1,40 +1,48 @@
-import math
 
-# pixel to visual angle conversion factor (only rough approximation)
-# (pixyViewV/pixyImgV + pixyViewH/pixyImgH) / 2
-pix2ang_factor = 0.117
-# reference object one is the pink earplug (~12mm wide)
-ref_size1 = 12
-
-# defining PixyCam sensory variables
-PIXY_MIN_X = 0
-PIXY_MAX_X = 319
-PIXY_MIN_Y = 0
-PIXY_MAX_Y = 199
-
-PIXY_X_CENTER = ((PIXY_MAX_X - PIXY_MIN_X) / 2)
-PIXY_Y_CENTER = ((PIXY_MAX_Y - PIXY_MIN_Y) / 2)
-PIXY_RCS_MIN_POS = 0
-PIXY_RCS_MAX_POS = 1000
-PIXY_RCS_CENTER_POS = ((PIXY_RCS_MAX_POS - PIXY_RCS_MIN_POS) / 2)
-BLOCK_BUFFER_SIZE = 10
+from pixy import pixy
+import sys
 
 
-def calculate_distance(block):
+def scan_scene():
     """
-    calculate distance to teh object
-    :param block: detected block
-    :return: object_dist
+    loop when in searching state. Detect objects in the scene, return one of the following states:
+    1 = Object detected: return a list of blocks
+    0 = Object not detected: nothing detected even if camera panned for the full range
+    TODO: global variable "blocks" and constants not included in this function
     """
-    object_dist = ref_size1 / (2 * math.tan(math.radians(block.width * pix2ang_factor)))
-    return object_dist
+    # detect objects in the scene
+    count_read = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
+    # need some filtering of blocks here
+    count = count_read
+
+    # If negative blocks, something went wrong
+    if count < 0:
+        print 'Error: pixy_get_blocks() [%d] ' % count
+        pixy.pixy_error(count)
+        sys.exit(1)
+    # If no object detected, pan camera until something is found
+    elif count == 0:
+        # look to the near end
+        m_pos = pixy.pixy_rcs_get_position(PIXY_RCS_PAN_CHANNEL)
+        near_end = PIXY_RCS_MIN_POS if m_pos < PIXY_RCS_CENTER_POS else PIXY_RCS_MAX_POS
+        pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, near_end)
+        count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
+        if count > 0:
+            return 1
+        else:
+            # look to the far end
+            far_end = PIXY_RCS_MAX_POS if m_pos < PIXY_RCS_CENTER_POS else PIXY_RCS_MIN_POS
+            pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, far_end)
+            count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
+            if count > 0:
+                return 1
+            else:
+                pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, PIXY_RCS_CENTER_POS)
+                return 0
+    # if more than one block
+    # Check which the largest block's signature and either do target chasing or
+    # line following
+    elif count > 0:
+        return 1
 
 
-def calculate_pan_error(block):
-    """
-    calculate pan error of the block
-    :param block: detected block
-    :return: pan_error
-    """
-    pan_error = PIXY_X_CENTER - block.x
-    return pan_error
