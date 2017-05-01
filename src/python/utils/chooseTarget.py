@@ -12,8 +12,8 @@ const = 0.001
 def chooseTarget(TargetList，pixLocX, picLocY):
     xList = [i_target.x - pixLocX for i_target in TargetList]
     yList = [i_target.y - pixLocY for i_target in TargetList]
-    wList = [i_target.w for i_target in TargetList]
-    hList = [i_target.h for i_target in TargetList]
+    wList = [i_target.width for i_target in TargetList]
+    hList = [i_target.height for i_target in TargetList]
     areaList = [w*h for w, h in zip(wList, hList)]
     distList = [sqrt(x**2+y**2) for x, y in zip(xList, yList)]
     # findTar = [weight * area/(dist+const) for area, dist in zip(areaList, distList)]
