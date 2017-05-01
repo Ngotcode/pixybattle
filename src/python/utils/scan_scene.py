@@ -1,6 +1,7 @@
 
 from pixy import pixy
 import sys
+import numpy as np
 
 
 def scan_scene():
@@ -22,23 +23,19 @@ def scan_scene():
         sys.exit(1)
     # If no object detected, pan camera until something is found
     elif count == 0:
-        # look to the near end
+        # pan from near end to far end
+        steps = 4
         m_pos = pixy.pixy_rcs_get_position(PIXY_RCS_PAN_CHANNEL)
-        near_end = PIXY_RCS_MIN_POS if m_pos < PIXY_RCS_CENTER_POS else PIXY_RCS_MAX_POS
-        pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, near_end)
-        count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
-        if count > 0:
-            return 1
-        else:
-            # look to the far end
-            far_end = PIXY_RCS_MAX_POS if m_pos < PIXY_RCS_CENTER_POS else PIXY_RCS_MIN_POS
-            pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, far_end)
+        pos_range = np.linspace(PIXY_RCS_MIN_POS, PIXY_RCS_MAX_POS, num=steps)
+        pos_range = np.fliplr(pos_range) if m_pos > PIXY_RCS_CENTER_POS else pos_range
+        for pos in pos_range:
+            pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pos)
             count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
             if count > 0:
                 return 1
-            else:
-                pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, PIXY_RCS_CENTER_POS)
-                return 0
+        # if nothing found, set camera to center and return 0
+        pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, PIXY_RCS_CENTER_POS)
+        return 0
     # if more than one block
     # Check which the largest block's signature and either do target chasing or
     # line following
