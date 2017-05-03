@@ -19,11 +19,20 @@ def scan_scene(blocks):
     TODO: global variable "blocks" and constants not included in this function
     """
     # detect objects in the scene
+    target_blocks = None
+    self_blocks = None
+    target_signature = 1
+    self_signature = 2 # save for future
     for pan_view in range(0, 1000, 333):
         pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 500)
         count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
-        print_block_info(blocks, count)
-        time.sleep(0.1)
+        if count < 0:
+            print 'Error: pixy_get_blocks() [%d] ' % count
+            pixy.pixy_error(count)
+            sys.exit(1)
+        else:
+            print_block_info(blocks, count)
+            time.sleep(0.1)
     return 1
     # pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 250)
     # count_read = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
