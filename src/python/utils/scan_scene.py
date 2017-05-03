@@ -41,7 +41,7 @@ def scan_scene(blocks):
     area_list = [0, 0]
     target_signature = 1
     self_signature = 2  # save for future
-    wait_time = 1
+    wait_time = 0.5
     for pan_view in range(0, 1000, 333):
         print(pan_view)
         pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_view)
