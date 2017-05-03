@@ -173,8 +173,8 @@ def loop():
     # If no new blocks, don't do anything
     while not pixy.pixy_blocks_are_new() and run_flag:
         pass
-    blocks = scan_scene(blocks)
-    if blocks[0]==None:
+    block = scan_scene(blocks)
+    if block ==None:
         count = 0
     else:
         count = 1
@@ -198,10 +198,35 @@ def loop():
         last_time = current_time
         # if the largest block is the object to pursue, then prioritize this
         # behavior
-        if blocks[0].signature == 1:
-            pan_error = PIXY_X_CENTER - blocks[0].x
+        # if blocks[0].signature == 1:
+        #     pan_error = PIXY_X_CENTER - blocks[0].x
+        #     object_dist = ref_size1 / \
+        #         (2 * math.tan(math.radians(blocks[0].width * pix2ang_factor)))
+        #     throttle = 0.5
+        #     # amount of steering depends on how much deviation is there
+        #     diff_drive = diff_gain * abs(float(pan_error)) / PIXY_X_CENTER
+        #     dist_error = object_dist - target_dist
+        #     # this is in float format with sign indicating advancing or
+        #     # retreating
+        #     advance = drive_gain * float(dist_error) / ref_dist
+        # # if Pixy sees a guideline, perform line following algorithm
+        # elif blocks[0].signature == 2:
+        #     pan_error = PIXY_X_CENTER - blocks[0].x
+        #     throttle = 1.0
+        #     diff_drive = 0.6
+        #     # amount of steering depends on how much deviation is there
+        #     # diff_drive = diff_gain * abs(float(turn_error)) / PIXY_X_CENTER
+        #     # use full available throttle for charging forward
+        #     advance = 1
+        # # if none of the blocks make sense, just pause
+        # else:
+        #     pan_error = 0
+        #     throttle = 0.0
+        #     diff_drive = 1
+        if block.signature == 1:
+            pan_error = PIXY_X_CENTER - block.x
             object_dist = ref_size1 / \
-                (2 * math.tan(math.radians(blocks[0].width * pix2ang_factor)))
+                (2 * math.tan(math.radians(block.width * pix2ang_factor)))
             throttle = 0.5
             # amount of steering depends on how much deviation is there
             diff_drive = diff_gain * abs(float(pan_error)) / PIXY_X_CENTER
@@ -210,8 +235,8 @@ def loop():
             # retreating
             advance = drive_gain * float(dist_error) / ref_dist
         # if Pixy sees a guideline, perform line following algorithm
-        elif blocks[0].signature == 2:
-            pan_error = PIXY_X_CENTER - blocks[0].x
+        elif block.signature == 2:
+            pan_error = PIXY_X_CENTER - block.x
             throttle = 1.0
             diff_drive = 0.6
             # amount of steering depends on how much deviation is there
