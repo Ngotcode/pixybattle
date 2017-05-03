@@ -236,7 +236,7 @@ def loop(robot_state):
         count = 0
     else:
         count = 1
-    If negative blocks, something went wrong
+    # If negative blocks, something went wrong
 
     # if count < 0:
     #     print 'Error: pixy_get_blocks() [%d] ' % count
