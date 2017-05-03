@@ -283,7 +283,8 @@ if __name__ == '__main__':
         setup()
         while(1):
             print('run')
-            blocks = scan_scene(blocks)
+            s = scan_scene(blocks)
+            print(s)
             time.sleep(3)
         # print(blocks[0].signature)
         # while True:
