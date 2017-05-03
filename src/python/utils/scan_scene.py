@@ -4,8 +4,9 @@ import sys
 from utils.constants import *
 import time
 
-ratio_thres = 2
-wait_time = 0.5
+ratio_thres = 500
+wait_time = 0
+step_size = 1
 
 
 def print_block_info(blocks, count):
@@ -48,7 +49,7 @@ def scan_scene(blocks, do_pan):
     self_signature = 2  # save for future
 
     if do_pan:
-        for pan_view in range(0, 1000, 333):
+        for pan_view in range(0, 1000, step_size):
             # print(pan_view)
             pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_view)
             time.sleep(wait_time)
