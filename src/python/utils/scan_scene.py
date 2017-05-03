@@ -10,6 +10,19 @@ def print_block_info(blocks, count):
         for index in range (0, count):
             print '[BLOCK_TYPE=%d SIG=%d X=%3d Y=%3d WIDTH=%3d HEIGHT=%3d ANGLE=%3d]' % (blocks[index].type, blocks[index].signature, blocks[index].x, blocks[index].y, blocks[index].width, blocks[index].height, blocks[index].angle)
 
+def search_max_blocks(signature, blocks, count):
+    for n_count in range(count):
+        if blocks[n_count].signature == signature and valid_block(blocks[n_count]):
+            return blocks[n_count]
+    return None
+
+# check if the block is valid in search area
+# later decision
+def valid_block(block):
+    return True
+
+def area(block):
+    return block.width * block.height
 
 def scan_scene(blocks):
     """
@@ -19,8 +32,7 @@ def scan_scene(blocks):
     TODO: global variable "blocks" and constants not included in this function
     """
     # detect objects in the scene
-    target_blocks = None
-    self_blocks = None
+    block_with_signature = [None, None]
     target_signature = 1
     self_signature = 2 # save for future
     for pan_view in range(0, 1000, 333):
@@ -32,9 +44,13 @@ def scan_scene(blocks):
             pixy.pixy_error(count)
             sys.exit(1)
         else:
-            print_block_info(blocks, count)
+            # print_block_info(blocks, count)
             time.sleep(0.1)
-    return 1
+            if count>0:
+                block = search_max_blocks(target_signature, blocks, count)
+                print_block_info(block, 1)
+            
+    return
     # pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 250)
     # count_read = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
     # count = count_read
