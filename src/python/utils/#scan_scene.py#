@@ -66,7 +66,7 @@ def scan_scene(blocks):
             pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pos)
             count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
             if count > 0:
-                return 1
+                return blocks
         # if nothing found, set camera to center and return 0
         pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, PIXY_RCS_CENTER_POS)
         return blocks

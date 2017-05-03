@@ -1,4 +1,4 @@
-
+from utils.scan_scene import scan_scene
 import time
 import sys
 import signal
@@ -8,6 +8,7 @@ import serial
 from datetime import datetime
 from pixy import pixy
 from pololu_drv8835_rpi import motors
+from utils.constants import *
 
 serial_device = '/dev/ttyACM0'
 baudRate = 9600
@@ -20,30 +21,6 @@ while True:
         print "Could not open serial device {}".format(serial_device)
         time.sleep(10)
 
-# defining PixyCam sensory variables
-PIXY_MIN_X = 0
-PIXY_MAX_X = 319
-PIXY_MIN_Y = 0
-PIXY_MAX_Y = 199
-
-PIXY_X_CENTER = ((PIXY_MAX_X - PIXY_MIN_X) / 2)
-PIXY_Y_CENTER = ((PIXY_MAX_Y - PIXY_MIN_Y) / 2)
-PIXY_RCS_MIN_POS = 0
-PIXY_RCS_MAX_POS = 1000
-PIXY_RCS_CENTER_POS = ((PIXY_RCS_MAX_POS - PIXY_RCS_MIN_POS) / 2)
-BLOCK_BUFFER_SIZE = 10
-
-# defining PixyCam motor variables
-PIXY_RCS_PAN_CHANNEL = 0
-PIXY_RCS_TILT_CHANNEL = 1
-
-PAN_PROPORTIONAL_GAIN = 400
-PAN_DERIVATIVE_GAIN = 300
-TILT_PROPORTIONAL_GAIN = 500
-TILT_DERIVATIVE_GAIN = 400
-
-MAX_MOTOR_SPEED = 300  # 480
-MIN_MOTOR_SPEED = -480
 
 run_flag = 1
 
@@ -102,7 +79,7 @@ blocks = None
 def handle_SIGINT(sig, frame):
     """
     Handle CTRL-C quit by setting run flag to false
-    This will break out of main loop and let you close
+    This will break out of main loop  and let you close
     pixy gracefully
     """
     global run_flag
@@ -304,10 +281,14 @@ def drive():
 if __name__ == '__main__':
     try:
         setup()
-        while True:
-            ok = loop()
-            if not ok:
-                break
+        blocks = scan_scene(blocks)
+        print blocks
+        # while True:
+        #     # ok = loop()
+        #     ok = scan_scene(blocks)
+        #     print ok
+        #     if not ok:
+        #        break
     finally:
         pixy.pixy_close()
         motors.setSpeeds(0, 0)
