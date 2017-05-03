@@ -33,6 +33,8 @@ def scan_scene(blocks):
     """
     # detect objects in the scene
     block_with_signature = [None, None]
+    tar_pan_view = -1
+    area_list = [0, 0]
     target_signature = 1
     self_signature = 2 # save for future
     for pan_view in range(0, 1000, 333):
@@ -45,12 +47,15 @@ def scan_scene(blocks):
             sys.exit(1)
         else:
             print_block_info(blocks, count)
-            time.sleep(0.1)
+            time.sleep(3)
             if count>0:
                 block = search_max_blocks(target_signature, blocks, count)
-                print(block.width)
-            
-    return
+                if area_list[target_signature-1] < area(block):
+                    block_with_signature[target_signature-1] = block
+                    area_list[target_signature-1] = area(block)           
+                    tar_pan_view = pan_view
+    print(tar_pan_view)
+    return block_with_signature
     # pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 250)
     # count_read = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
     # count = count_read
