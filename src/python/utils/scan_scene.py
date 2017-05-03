@@ -44,11 +44,11 @@ def scan_scene(blocks):
             pixy.pixy_error(count)
             sys.exit(1)
         else:
-            # print_block_info(blocks, count)
+            print_block_info(blocks, count)
             time.sleep(0.1)
             if count>0:
                 block = search_max_blocks(target_signature, blocks, count)
-                print_block_info(block, 1)
+                print(block.width)
             
     return
     # pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 250)
