@@ -16,6 +16,7 @@ def scan_scene(blocks):
     # detect objects in the scene
     # pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 0)
     count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
+    print(blocks==None)
     print(count)
     if count>=0:
         for n_count in range(0, count):
