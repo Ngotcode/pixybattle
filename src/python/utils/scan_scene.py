@@ -61,4 +61,4 @@ def scan_scene(blocks):
                     tar_pan_view = pan_view
     print(tar_pan_view)
     pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, tar_pan_view)
-    return block_with_signature[0]
+    return block_with_signature

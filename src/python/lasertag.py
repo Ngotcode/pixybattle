@@ -281,14 +281,12 @@ def drive():
 if __name__ == '__main__':
     try:
         setup()
-        s = scan_scene(blocks)
-        # print(blocks[0].signature)
-        # while True:
-        #     # ok = loop()
-        #     ok = scan_scene(blocks)
-        #     print ok
-        #     if not ok:
-        #        break
+        blocks = scan_scene(blocks)
+        while True:
+            ok = loop()
+            print ok
+            if not ok:
+               break
     finally:
         pixy.pixy_close()
         motors.setSpeeds(0, 0)
