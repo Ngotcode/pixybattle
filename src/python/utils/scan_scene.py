@@ -47,7 +47,7 @@ def scan_scene(blocks):
             sys.exit(1)
         else:
             print_block_info(blocks, count)
-            time.sleep(3)
+            time.sleep(0.1)
             if count>0:
                 block = search_max_blocks(target_signature, blocks, count)
                 if area_list[target_signature-1] < area(block):
@@ -55,7 +55,8 @@ def scan_scene(blocks):
                     area_list[target_signature-1] = area(block)           
                     tar_pan_view = pan_view
     print(tar_pan_view)
-    return block_with_signature
+    print(area(block_with_signature[target_signature-1]))
+    return block_with_signature[0]
     # pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 250)
     # count_read = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
     # count = count_read
