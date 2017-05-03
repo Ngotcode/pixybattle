@@ -24,7 +24,7 @@ def scan_scene(blocks):
     target_signature = 1
     self_signature = 2 # save for future
     for pan_view in range(0, 1000, 333):
-        pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 500)
+        pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_view)
         count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
         if count < 0:
             print 'Error: pixy_get_blocks() [%d] ' % count
