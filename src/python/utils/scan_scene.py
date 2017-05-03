@@ -19,10 +19,14 @@ def scan_scene(blocks):
     TODO: global variable "blocks" and constants not included in this function
     """
     # detect objects in the scene
+    print('line 22')
     pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 500)
+    print('line 24')
     count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
+    print('line 26')
+    print(count)
     print_block_info(blocks, count)
-    
+    return 1
     # pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 250)
     # count_read = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
     # count = count_read
