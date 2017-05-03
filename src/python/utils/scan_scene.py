@@ -24,7 +24,8 @@ def search_max_blocks(signature, blocks, count):
 # check if the block is valid in search area
 # later decision
 def valid_block(block):
-    return block.height/block.width <= ratio_thres
+    return True
+    # block.height/block.width <= ratio_thres
 
 
 def area(block):
