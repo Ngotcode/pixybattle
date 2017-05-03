@@ -14,6 +14,7 @@ from utils.robot_state import RobotState
 
 serial_device = '/dev/ttyACM0'
 baudRate = 9600
+do_pan = 1
 
 while True:
     try:
@@ -231,7 +232,9 @@ def loop(robot_state):
     while not pixy.pixy_blocks_are_new() and run_flag:
         pass
     # count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, robot_state.blocks)
-    block = scan_scene(robot_state.blocks, 0)
+    block = scan_scene(robot_state.blocks, do_pan)
+    if do_pan:
+        do_pan = 0
     if block == None:
         count = 0
     else:
