@@ -231,18 +231,18 @@ def loop(robot_state):
     # If no new blocks, don't do anything
     while not pixy.pixy_blocks_are_new() and run_flag:
         pass
-    # count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, robot_state.blocks)
-    block = scan_scene(robot_state.blocks, 0)
-    if block == None:
-        count = 0
-    else:
-        count = 1
+    count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, robot_state.blocks)
+    # # block = scan_scene(robot_state.blocks, 0)
+    # if block == None:
+    #     count = 0
+    # else:
+    #     count = 1
     # If negative blocks, something went wrong
 
-    # if count < 0:
-    #     print 'Error: pixy_get_blocks() [%d] ' % count
-    #     pixy.pixy_error(count)
-    #     sys.exit(1)
+    if count < 0:
+        print 'Error: pixy_get_blocks() [%d] ' % count
+        pixy.pixy_error(count)
+        sys.exit(1)
     
     # if more than one block
     # Check which the largest block's signature and either do target chasing or
@@ -260,7 +260,8 @@ def loop(robot_state):
         # if the largest block is the object to pursue, then prioritize this
         # behavior
         # if block.signature == 1:
-        pan_error = drive_toward_block(robot_state, block)
+        # pan_error = drive_toward_block(robot_state, block)
+        pan_error = drive_toward_block(robot_state, robot_state.blocks[0])
             # pan_error = PIXY_X_CENTER - robot_state.blocks[0].x
             # object_dist = ref_size1 / \
             #     (2 * math.tan(math.radians(robot_state.blocks[0].width * pix2ang_factor)))
