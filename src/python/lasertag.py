@@ -173,12 +173,17 @@ def loop():
     # If no new blocks, don't do anything
     while not pixy.pixy_blocks_are_new() and run_flag:
         pass
-    count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
+    blocks = scan_scene(blocks)
+    if blocks[0]==None:
+        count = 0
+    else:
+        count = 1
+    # count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
     # If negative blocks, something went wrong
-    if count < 0:
-        print 'Error: pixy_get_blocks() [%d] ' % count
-        pixy.pixy_error(count)
-        sys.exit(1)
+    # if count < 0:
+    #     print 'Error: pixy_get_blocks() [%d] ' % count
+    #     pixy.pixy_error(count)
+    #     sys.exit(1)
     # if more than one block
     # Check which the largest block's signature and either do target chasing or
     # line following
@@ -242,7 +247,7 @@ def loop():
         # >0 is turning left; currently only p-control is implemented
         bias = float(turn_error) / float(PIXY_RCS_CENTER_POS) * h_pgain
     drive()
-    return run_flag
+    return run_flag 
 
 
 def drive():
@@ -281,7 +286,7 @@ def drive():
 if __name__ == '__main__':
     try:
         setup()
-        blocks = scan_scene(blocks)
+        # block = scan_scene(blocks)
         while True:
             ok = loop()
             print ok
