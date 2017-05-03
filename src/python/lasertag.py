@@ -184,7 +184,7 @@ def loop():
         print 'Error: pixy_get_blocks() [%d] ' % count
         pixy.pixy_error(count)
         sys.exit(1)
-    if more than one block
+    # if more than one block
     # Check which the largest block's signature and either do target chasing or
     # line following
     if count > 0:
