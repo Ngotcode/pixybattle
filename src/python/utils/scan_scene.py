@@ -1,4 +1,3 @@
-
 from pixy import pixy
 import sys
 from utils.constants import *
@@ -21,6 +20,7 @@ def search_max_blocks(signature, blocks, count):
 # check if the block is valid in search area
 # later decision
 def valid_block(block):
+    if block.height/block.width
     return True
 
 
@@ -60,7 +60,7 @@ def scan_scene(blocks):
                     area_list[target_signature - 1] = area(block)
                     tar_pan_view = pan_view
     # print(tar_pan_view)
-    if tar_pan_view < 0
+    if tar_pan_view < 0:
         tar_pan_view = PIXY_RCS_CENTER_POS
     pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, tar_pan_view)
     return block_with_signature[0]
