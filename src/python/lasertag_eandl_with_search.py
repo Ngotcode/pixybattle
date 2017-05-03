@@ -226,7 +226,6 @@ def loop(robot_state):
         motors.setSpeeds(0, 0)
         time.sleep(5)
 
-    robot_state.previous_time = datetime.now()
     robot_state.current_time = datetime.now()
     # If no new blocks, don't do anything
     while not pixy.pixy_blocks_are_new() and run_flag:
