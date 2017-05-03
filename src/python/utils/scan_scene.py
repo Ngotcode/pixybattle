@@ -7,7 +7,6 @@ import time
 
 def print_block_info(blocks, count):
     if count > 0:
-    # Blocks found #
         for index in range (0, count):
             print '[BLOCK_TYPE=%d SIG=%d X=%3d Y=%3d WIDTH=%3d HEIGHT=%3d]' % (blocks[index].type, blocks[index].signature, blocks[index].x, blocks[index].y, blocks[index].width, blocks[index].height)
 
@@ -20,7 +19,7 @@ def scan_scene(blocks):
     TODO: global variable "blocks" and constants not included in this function
     """
     # detect objects in the scene
-    pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 0)
+    pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 500)
     count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
     print_block_info(blocks, count)
     
