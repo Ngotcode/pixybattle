@@ -1,4 +1,4 @@
-
+from utils.scan_scene import scan_scene
 import time
 import sys
 import signal
@@ -8,6 +8,7 @@ import serial
 from datetime import datetime
 from pixy import pixy
 from pololu_drv8835_rpi import motors
+from utils.constants import *
 
 serial_device = '/dev/ttyACM0'
 baudRate = 9600
@@ -20,30 +21,6 @@ while True:
         print "Could not open serial device {}".format(serial_device)
         time.sleep(10)
 
-# defining PixyCam sensory variables
-PIXY_MIN_X = 0
-PIXY_MAX_X = 319
-PIXY_MIN_Y = 0
-PIXY_MAX_Y = 199
-
-PIXY_X_CENTER = ((PIXY_MAX_X - PIXY_MIN_X) / 2)
-PIXY_Y_CENTER = ((PIXY_MAX_Y - PIXY_MIN_Y) / 2)
-PIXY_RCS_MIN_POS = 0
-PIXY_RCS_MAX_POS = 1000
-PIXY_RCS_CENTER_POS = ((PIXY_RCS_MAX_POS - PIXY_RCS_MIN_POS) / 2)
-BLOCK_BUFFER_SIZE = 10
-
-# defining PixyCam motor variables
-PIXY_RCS_PAN_CHANNEL = 0
-PIXY_RCS_TILT_CHANNEL = 1
-
-PAN_PROPORTIONAL_GAIN = 400
-PAN_DERIVATIVE_GAIN = 300
-TILT_PROPORTIONAL_GAIN = 500
-TILT_DERIVATIVE_GAIN = 400
-
-MAX_MOTOR_SPEED = 300  # 480
-MIN_MOTOR_SPEED = -480
 
 run_flag = 1
 
@@ -102,7 +79,7 @@ blocks = None
 def handle_SIGINT(sig, frame):
     """
     Handle CTRL-C quit by setting run flag to false
-    This will break out of main loop and let you close
+    This will break out of main loop  and let you close
     pixy gracefully
     """
     global run_flag
@@ -196,6 +173,11 @@ def loop():
     # If no new blocks, don't do anything
     while not pixy.pixy_blocks_are_new() and run_flag:
         pass
+    # block = scan_scene(blocks)
+    # if block ==None:
+    #     count = 0
+    # else:
+    #     count = 1
     count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
     # If negative blocks, something went wrong
     if count < 0:
@@ -241,6 +223,31 @@ def loop():
             pan_error = 0
             throttle = 0.0
             diff_drive = 1
+        # if block.signature == 1:
+        #     pan_error = PIXY_X_CENTER - block.x
+        #     object_dist = ref_size1 / \
+        #         (2 * math.tan(math.radians(block.width * pix2ang_factor)))
+        #     throttle = 0.5
+        #     # amount of steering depends on how much deviation is there
+        #     diff_drive = diff_gain * abs(float(pan_error)) / PIXY_X_CENTER
+        #     dist_error = object_dist - target_dist
+        #     # this is in float format with sign indicating advancing or
+        #     # retreating
+        #     advance = drive_gain * float(dist_error) / ref_dist
+        # # if Pixy sees a guideline, perform line following algorithm
+        # elif block.signature == 2:
+        #     pan_error = PIXY_X_CENTER - block.x
+        #     throttle = 1.0
+        #     diff_drive = 0.6
+        #     # amount of steering depends on how much deviation is there
+        #     # diff_drive = diff_gain * abs(float(turn_error)) / PIXY_X_CENTER
+        #     # use full available throttle for charging forward
+        #     advance = 1
+        # # if none of the blocks make sense, just pause
+        # else:
+        #     pan_error = 0
+        #     throttle = 0.0
+        #     diff_drive = 1
         pan_loop.update(pan_error)
 
     # Update pixy's pan position
@@ -265,7 +272,7 @@ def loop():
         # >0 is turning left; currently only p-control is implemented
         bias = float(turn_error) / float(PIXY_RCS_CENTER_POS) * h_pgain
     drive()
-    return run_flag
+    return run_flag 
 
 
 def drive():
@@ -304,10 +311,12 @@ def drive():
 if __name__ == '__main__':
     try:
         setup()
+        scan_scene(blocks)
         while True:
             ok = loop()
+            print ok
             if not ok:
-                break
+               break
     finally:
         pixy.pixy_close()
         motors.setSpeeds(0, 0)
