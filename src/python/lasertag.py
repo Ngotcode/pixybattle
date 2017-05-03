@@ -179,14 +179,14 @@ def loop():
     # else:
     #     count = 1
     count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
-    If negative blocks, something went wrong
+    # If negative blocks, something went wrong
     if count < 0:
         print 'Error: pixy_get_blocks() [%d] ' % count
         pixy.pixy_error(count)
         sys.exit(1)
     if more than one block
-    Check which the largest block's signature and either do target chasing or
-    line following
+    # Check which the largest block's signature and either do target chasing or
+    # line following
     if count > 0:
 
         time_difference = current_time - last_fire
@@ -196,8 +196,8 @@ def loop():
             last_fire = current_time
 
         last_time = current_time
-        if the largest block is the object to pursue, then prioritize this
-        behavior
+        # if the largest block is the object to pursue, then prioritize this
+        # behavior
         if blocks[0].signature == 1:
             pan_error = PIXY_X_CENTER - blocks[0].x
             object_dist = ref_size1 / \
