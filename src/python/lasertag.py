@@ -280,7 +280,6 @@ def drive():
 
 if __name__ == '__main__':
     try:
-        pixy.pixy_close()
         setup()
         s = scan_scene(blocks)
         # print(blocks[0].signature)
