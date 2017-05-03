@@ -210,6 +210,7 @@ def loop(robot_state):
     # global blocks, throttle, diff_drive, diff_gain, bias, advance, turn_error,
     # global current_time, last_time, object_dist, dist_error, pan_error_prev,
     # global dist_error_prev, pan_loop, killed, last_fire
+    global do_pan
 
     if ser.in_waiting:
         print("Reading line from serial..")
