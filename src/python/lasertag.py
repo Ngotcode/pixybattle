@@ -281,7 +281,9 @@ def drive():
 if __name__ == '__main__':
     try:
         setup()
-        blocks = scan_scene(blocks)
+        while(1):
+            blocks = scan_scene(blocks)
+            time.sleep(3)
         # print(blocks[0].signature)
         # while True:
         #     # ok = loop()
