@@ -5,6 +5,12 @@ import numpy as np
 from utils.constants import *
 import time
 
+def print_block_info(blocks, count):
+    if count > 0:
+    # Blocks found #
+        for index in range (0, count):
+            print '[BLOCK_TYPE=%d SIG=%d X=%3d Y=%3d WIDTH=%3d HEIGHT=%3d]' % (blocks[index].type, blocks[index].signature, blocks[index].x, blocks[index].y, blocks[index].width, blocks[index].height)
+
 
 def scan_scene(blocks):
     """
@@ -16,11 +22,7 @@ def scan_scene(blocks):
     # detect objects in the scene
     pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 0)
     count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
-    if count>=0:
-        for n_count in range(0, count+1):
-            print(blocks[n_count].signature)
-    time.sleep(3)
-    return(blocks[0])
+    print_block_info(blocks, count)
     
     # pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 250)
     # count_read = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
