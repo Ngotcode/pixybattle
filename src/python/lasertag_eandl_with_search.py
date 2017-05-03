@@ -14,7 +14,7 @@ from utils.robot_state import RobotState
 
 serial_device = '/dev/ttyACM0'
 baudRate = 9600
-do_pan = 1
+
 
 while True:
     try:
@@ -101,7 +101,7 @@ target_dist = 1
 ref_dist = 400
 
 blocks = None
-
+do_pan = 1
 
 def handle_SIGINT(sig, frame):
     """
