@@ -101,7 +101,7 @@ target_dist = 1
 ref_dist = 400
 
 blocks = None
-do_pan = 0
+do_pan = 1
 
 def handle_SIGINT(sig, frame):
     """
