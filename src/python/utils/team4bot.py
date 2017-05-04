@@ -31,6 +31,8 @@ H_PGAIN_DEFAULT = 0.5
 # body turning d-gain
 H_DGAIN_DEFAULT = 0
 
+KILLED_TIME = 5  # seconds
+
 
 class RobotController(object):
     _instance = None
@@ -64,36 +66,71 @@ class RobotController(object):
         self._motors = pololu_drv8835_rpi.motors
         self._motor_speeds = (0, 0)
 
-        self.state = 'stopped'  # todo: replace with enum
+        self.__behaviour = 'stopped'  # todo: replace with enum
 
-        self.state_methods = {
-            'stopped': self.stop,
-            'search': self.search,
-            'proceed': self.set_motor_speeds
+        self.behaviour_methods = {
+            'stopped': self._stop,
+            'search': self._search,
+            'proceed': self.set_motor_speeds,
+            'killed': self._killed
         }
+
+        self._previous_behaviour = self.__behaviour
 
         self.serial = self._setup_serial()
 
     @property
     def syn_drive(self):
+        """Drive level to be applied to both wheels"""
         return self.advance * (1 - self.diff_drive) * self.throttle * self.total_drive
 
     @property
     def left_diff(self):
+        """Drive level to add to left wheel"""
         return self.bias * self.diff_drive * self.throttle * self.total_drive
 
     @property
     def right_diff(self):
+        """Drive level to add to right wheel"""
         return -self.left_diff
 
+    @property
+    def behaviour(self):
+        """Behavioural state of the robot"""
+        return self.__behaviour
+
+    @behaviour.setter
+    def behaviour(self, value):
+        logger.debug('Setting behaviour to %s', value)
+        if self.behaviour is not 'killed':
+            self._previous_behaviour = self.behaviour
+        self.__behaviour = value
+
     def constrain_drive(self, drive):
+        """
+        Return drive level to be applied to motors
+        
+        Parameters
+        ----------
+        drive : number
+            Drive level which may fall outside of bounds
+
+        Returns
+        -------
+        int
+            Drive level which is either 0, or between the deadband and max levels (either +ve or -ve)
+        """
         if abs(drive) < self.deadband:
             logger.debug('Drive level %s is below deadband, setting to 0', str(drive))
             return 0
+
         if abs(drive) > MAX_MOTOR_SPEED:
-            logger.debug('Drive level %s is above max motor speed, setting to %s', str(drive), str(MAX_MOTOR_SPEED))
-            drive = math.copysign(MAX_MOTOR_SPEED, drive)
-        return int(drive)
+            new_drive = int(math.copysign(MAX_MOTOR_SPEED, drive))
+            logger.debug('Drive level %s is above max motor speed, setting to %s', str(drive), str(new_drive))
+        else:
+            new_drive = int(drive)
+
+        return new_drive
 
     def set_motor_speeds(self, left_right_speeds=None):
         """
@@ -116,28 +153,42 @@ class RobotController(object):
         self._motors.setSpeeds(*self._motor_speeds)
 
     def set_motor_speeds_proportional(self, left_right_speeds_ppn):
+        """
+        
+        Parameters
+        ----------
+        left_right_speeds_ppn : array-like
+            Sequence of speeds in left-right order as a proportion of the maximum (i.e. -1 to 1)
+        """
         self.set_motor_speeds([MAX_MOTOR_SPEED * speed_ppn for speed_ppn in left_right_speeds_ppn])
 
-    def check_if_killed(self):
+    def _check_if_killed(self):
+        """Set behaviour to killed if we have been shot"""
         if self.serial.in_waiting:
             logger.debug("reading line from serial..")
             code = self.serial.readline().rstrip()
-            logger.debug("Got IR code %s", str(code))
+            logger.debug("Got IR code %s", str(code))  # todo: actually check whether this is the right code
             logger.critical("YOU SUNK MY BATTLESHIP")
-            self.halt()
-            time.sleep(5)
-            self.proceed()
+            self.behaviour = 'killed'
+            return True
+
+    def _killed(self):
+        """Execute behaviour associated with killed state"""
+        time.sleep(KILLED_TIME)
+        logger.info('Waking up')
+        self.serial.reset_output_buffer()  # so that shots received while dead aren't queued in the buffer
+        self.behaviour = self._previous_behaviour
 
     def halt(self):
         """
-        Stop without tidying up any intermediate variables. Can be used to quickly abort, or to stop in a state where it
+        Stop without tidying up any intermediate variables. Can be used to quickly abort, or to stop in a behaviour where it
         is possible to resume.
         """
         logger.info('Halting')
         self.set_motor_speeds((0, 0))
         return 1
 
-    def stop(self):
+    def _stop(self):
         """
         Gracefully stop.
         """
@@ -146,12 +197,12 @@ class RobotController(object):
         self.set_motor_speeds()
         return 1
 
-    def search(self):
+    def _search(self):
         logger.info('Initiating search behaviour')
         # do things
         return 1
 
-    def proceed(self):
+    def _proceed(self):
         """
         Respond only to changes in member variables.
         """
@@ -160,13 +211,15 @@ class RobotController(object):
         return 1
 
     def start(self):
-        self.proceed()
+        """Main entry point to the robot's function"""
+        self._proceed()
         self._loop()
 
     def _loop(self):
+        """Main loop"""
         while True:
-            self.check_if_killed()
-            ret_code = self.state_methods[self.state]()
+            self._check_if_killed()
+            ret_code = self.behaviour_methods[self.behaviour]()
             if not ret_code:
                 break
 
