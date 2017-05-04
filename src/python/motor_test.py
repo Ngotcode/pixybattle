@@ -118,9 +118,9 @@ def pan_camera(extent):
 ])
 def test_motors(left, right, msg):
     if isinstance(motors, Dummy):
-        logger.warning('Using dummy motors\n')
+        logger.warning('Using dummy motors')
 
-    logger.info('Testing movement: %s\n\n', msg.upper())
+    logger.info('Testing movement: %s\n', msg.upper())
     left_drive, right_drive = left*drive_level, right*drive_level
     logger.debug('Setting speed: left %d, right %s\n%s', left_drive, right_drive, '-'*80)
 
