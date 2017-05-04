@@ -35,5 +35,8 @@ class Behaviour(Enum):
     PAN = 'pan'
     """Stationary, panning camera"""
 
+    KILLED = 'killed'
+    """Recently shot: stationary for short period"""
+
     PANIC = 'panic'
     """Everything has gone wrong, spin around and shoot"""
