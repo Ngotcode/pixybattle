@@ -1,5 +1,22 @@
+#!/usr/bin/env python
+"""
+Test module to prove that the motors are working (i.e. it has battery, the wires are plugged in the right way round 
+etc.).
+
+Usage: from the command line, `pytest -s <this_file>`, or just run it as a script.
+
+These tests can run in two modes.
+
+The first mode is for use on the robot: `test_import_*` should pass and the robot should move as described in the log 
+(it needs some space to do so).
+
+The second mode is for local testing (basically, proving that the tests themselves are internally consistent). The 
+motor commands are passed to dummy objects which just assert that the arguments look correct. The waits between motor 
+commands are skipped to save time. `test_import_*` should both fail in this mode.
+"""
+
 from __future__ import division
-from utils.constants import MAX_MOTOR_SPEED
+from utils.constants import MAX_MOTOR_SPEED, PIXY_RCS_PAN_CHANNEL
 import logging
 from utils.bot_logging import get_logger_name
 import pytest
@@ -11,7 +28,6 @@ MOTOR_WAIT = 1
 
 CAMERA_WAIT = 1
 
-PIXY_RCS_PAN_CHANNEL = 0  # todo: replace with constant
 CAMERA_MAX_ARG = 1000
 CAMERA_SERVO_RANGE = 120  # degrees
 
@@ -45,14 +61,14 @@ logger = logging.getLogger(get_logger_name(logging.DEBUG))
 try:
     from pololu_drv8835_rpi import motors
 except:
-    logger.error('Could not import `motors`, using dummy and bypassing waits')
+    logger.warning('Could not import `motors`, using dummy and bypassing waits')
     MOTOR_WAIT = 0
     motors = DummyMotors()
 
 try:
     from pixy import pixy
 except:
-    logger.error('Could not import `pixy`, using dummy and bypassing waits')
+    logger.warning('Could not import `pixy`, using dummy and bypassing waits')
     CAMERA_WAIT = 0
     pixy = DummyPixy()
 
@@ -82,7 +98,7 @@ def pan_camera(extent):
 
     arg_value = int((extent + 1) * CAMERA_MAX_ARG/2)
     angle = extent * CAMERA_SERVO_RANGE/2
-    logger.debug('Angling camera to value %d (%.3f degrees azimuth)', arg_value, angle)
+    logger.debug('Angling camera to value %d (%.1f degrees azimuth)\n%s', arg_value, angle, '-'*80)
 
     pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, arg_value)
     return arg_value
@@ -101,11 +117,13 @@ def pan_camera(extent):
     (0, 0, 'stationary')
 ])
 def test_motors(left, right, msg):
-    logger.info('Testing movement: %s', msg.upper())
-    left_drive, right_drive = left*drive_level, right*drive_level
-    logger.debug('Setting speed: left %d, right %s', left_drive, right_drive)
     if isinstance(motors, Dummy):
-        logger.warning('Using dummy motors')
+        logger.warning('Using dummy motors\n')
+
+    logger.info('Testing movement: %s\n\n', msg.upper())
+    left_drive, right_drive = left*drive_level, right*drive_level
+    logger.debug('Setting speed: left %d, right %s\n%s', left_drive, right_drive, '-'*80)
+
     motors.setSpeeds(left_drive, right_drive)
     time.sleep(MOTOR_WAIT)
     motors.setSpeeds(0, 0)  # assumes that stopping works
@@ -121,9 +139,9 @@ def test_motors(left, right, msg):
     (0, 'centered')
 ])
 def test_camera_servo(angle, msg):
-    logger.debug('Testing camera pan: %s', msg.upper())
     if isinstance(motors, Dummy):
         logger.warning('Using dummy pixy interface')
+    logger.debug('Testing camera pan: %s\n', msg.upper())
     pan_camera(angle)
     time.sleep(CAMERA_WAIT)
 
