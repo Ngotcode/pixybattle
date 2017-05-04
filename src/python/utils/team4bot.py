@@ -80,19 +80,19 @@ class RobotController(object):
         self.serial = self._setup_serial()
 
     @property
-    def syn_drive(self):
+    def _syn_drive(self):
         """Drive level to be applied to both wheels"""
         return self.advance * (1 - self.diff_drive) * self.throttle * self.total_drive
 
     @property
-    def left_diff(self):
+    def _left_diff(self):
         """Drive level to add to left wheel"""
         return self.bias * self.diff_drive * self.throttle * self.total_drive
 
     @property
-    def right_diff(self):
+    def _right_diff(self):
         """Drive level to add to right wheel"""
-        return -self.left_diff
+        return -self._left_diff
 
     @property
     def behaviour(self):
@@ -141,7 +141,7 @@ class RobotController(object):
             Sequence of speeds in Left-Right order. Defaults to determining speeds using member variables
         """
         if left_right_speeds is None:
-            left_right_speeds = (self.syn_drive + diff for diff in (self.left_diff, self.right_diff))
+            left_right_speeds = (self._syn_drive + diff for diff in (self._left_diff, self._right_diff))
         else:
             logger.debug('Motor speed set manually')
             assert len(left_right_speeds) == 2
@@ -231,6 +231,7 @@ class RobotController(object):
         """
         if cls._instance:
             logging.warning('RobotController already exists, new parameters and defaults will be ignored')
+            # todo: destroy previous instance and return a new one instead?
         else:
             cls._instance = RobotController(**kwargs)
         return cls._instance
