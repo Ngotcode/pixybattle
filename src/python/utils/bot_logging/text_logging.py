@@ -1,17 +1,8 @@
 import logging
-from datetime import datetime
-from constants import ROOT_DIR
 import os
 import sys
 
-LOGGER_NAME = 'team4bot'
-LOG_ROOT = os.path.join(ROOT_DIR, 'logs')
-TIMESTAMP = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
-
-
-class InfoFilter(logging.Filter):
-    def filter(self, rec):
-        return rec.levelno in (logging.DEBUG, logging.INFO)
+from logging_constants import LOG_DIR
 
 
 class TimerFormatter(logging.Formatter):
@@ -30,91 +21,58 @@ class TimerFormatter(logging.Formatter):
         return levelname.rjust(8)
 
 
-def get_logger_name(stdout_level=logging.INFO):
+root_logger = logging.getLogger()
+
+if not os.path.isdir(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
+formatter = TimerFormatter('%(adjustedTime)s %(adjustedLevel)s: [%(name)s] %(message)s')
+
+log_path = os.path.join(LOG_DIR, 'log.txt')
+
+file_handler = logging.FileHandler(filename=log_path)
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
+root_logger.addHandler(file_handler)
+
+stderr_handler = logging.StreamHandler(stream=sys.stderr)
+stderr_handler.setLevel(logging.DEBUG)
+stderr_handler.setFormatter(formatter)
+root_logger.addHandler(stderr_handler)
+
+root_logger.setLevel(logging.DEBUG)
+
+logging.getLogger(__name__).info('Created log file at %s', log_path)
+
+
+def set_log_level(level=logging.DEBUG):
     """
-    Performs basic configuration of logging for the robot, including creating a timestamped log file. Every line 
-    starts with the time in seconds since the logger was created (usually at the start of the script).
+    Set the severity threshold for logs to be printed out to the command line. This does not affect logs printed to 
+    the timestamped file. 
+    
+    N.B. THIS SHOULD ONLY BE CALLED IN AN ENTRY POINT, i.e. in an `if __name__ == '__main__':` block. Otherwise you 
+    will interfere with logging which should be controlled by other entry points.
     
     Parameters
     ----------
-    stdout_level : int
-        Log level to print to stdout (default is defined in utils/constants.py). N.B. this does not effect logging to a 
-        timestamped file with level logging.DEBUG, or logging to stderr with level logging.WARNING.
-        
-    Returns
-    -------
-    str
-        Name of root logger
-        
-    Examples
-    --------
-    Import logging and this function:
-    
-    >>> import logging
-    >>> from utils.bot_logging import get_logger_name  # assuming you're in the src/python directory
-    
-    Call this function, which performs initial setup, tells the logger to print all messages out to the command line, 
-    and returns the logger name:
-    
-    >>> logger_name = get_logger_name(logging.DEBUG)
-    >>> logger = logging.getLogger(logger_name)
-    
-    Then log some messages as you deem appropriate!
-    
-    >>> logger.debug('Fine-grained information about exactly what is happening at every step')
-    >>> logger.info('Informative message about general healthy functioning')
-    >>> logger.warning("Suggestion that something might have gone a bit wrong, but it hasn't broken yet")
-    >>> logger.error('Something has gone wrong and your program has fallen over')
-    >>> logger.critical('Something has gone extremely wrong and your program may have caused other problems with your computer')
-    
-    Warning and above will be written to STDERR (usually red text in your console).
-    Info and debug will be written to STDOUT (plain text in your console).
-    Everything will be written to a timestamped log file.
-    
-    If you don't need to see all the debug-level messages in your STDOUT, just leave that argument out of 
-    `get_logger_name()`.
+    level : int
+        Integer between 0 and 50. Ideally, use one of the log levels specified in the `logging` module:
+        logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR or logging.CRITICAL.
     """
-    log_path = os.path.join(LOG_ROOT, TIMESTAMP + '.txt')
-
-    if not os.path.isdir(LOG_ROOT):
-        os.makedirs(LOG_ROOT)
-
-    logger = logging.getLogger(LOGGER_NAME)
-
-    if not os.path.isfile(log_path):
-        formatter = TimerFormatter('%(adjustedTime)s %(adjustedLevel)s: %(message)s')
-
-        file_handler = logging.FileHandler(filename=log_path)
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-        stdout_handler = logging.StreamHandler(stream=sys.stdout)
-        stdout_handler.setLevel(stdout_level)
-        stdout_handler.setFormatter(formatter)
-        logger.addHandler(stdout_handler)
-
-        stderr_handler = logging.StreamHandler(stream=sys.stderr)
-        stderr_handler.setLevel(logging.WARNING)
-        stderr_handler.addFilter(InfoFilter())
-        stderr_handler.setFormatter(formatter)
-        logger.addHandler(stderr_handler)
-
-        logger.setLevel(logging.DEBUG)
-
-        logger.debug('Created log file at %s', log_path)
-        logger.debug('Logging to STDOUT at level %d', stdout_level)
-
-        logger.info('Logging set up')
-
-    return LOGGER_NAME
+    stderr_handler.setLevel(level)
 
 
 if __name__ == '__main__':
-    name = get_logger_name()
-    logger = logging.getLogger(name)
+    logger = logging.getLogger(__name__)
     logger.debug('Fine-grained information about exactly what is happening at every step')
     logger.info('Informative message about general healthy functioning')
     logger.warning("Suggestion that something might have gone a bit wrong, but it hasn't broken yet")
     logger.error('Something has gone wrong and your program has fallen over')
     logger.critical('Something has gone extremely wrong and your program may have caused other problems with your computer')
+
+    set_log_level(logging.WARNING)
+    logger.debug('This DEBUG message should show up in the log file, but not the console')
+    logger.info('This INFO message should show up in the log file, but not the console')
+    logger.warning("This WARNING message should show up in both the log file and the console")
+    logger.error('This ERROR message should show up in both the log file and the console')
+    logger.critical('This CRITICAL message should show up in both the log file and the console')
