@@ -4,6 +4,8 @@ from constants import ROOT_DIR
 import os
 import sys
 
+DEFAULT_LOG_LEVEL = logging.INFO
+
 LOGGER_NAME = 'team4bot'
 LOG_ROOT = os.path.join(ROOT_DIR, 'logs')
 TIMESTAMP = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
@@ -30,7 +32,7 @@ class TimerFormatter(logging.Formatter):
         return levelname.rjust(8)
 
 
-def get_logger_name(stdout_level=logging.INFO):
+def get_logger_name(stdout_level=DEFAULT_LOG_LEVEL):
     """
     Performs basic configuration of logging for the robot, including creating a timestamped log file. Every line 
     starts with the time in seconds since the logger was created (usually at the start of the script).
