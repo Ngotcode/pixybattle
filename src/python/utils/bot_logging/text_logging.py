@@ -31,16 +31,16 @@ formatter = TimerFormatter('%(adjustedTime)s %(adjustedLevel)s: [%(name)s] %(mes
 log_path = os.path.join(LOG_DIR, 'log.txt')
 
 file_handler = logging.FileHandler(filename=log_path)
-file_handler.setLevel(logging.DEBUG)
+file_handler.setLevel(logging.NOTSET)
 file_handler.setFormatter(formatter)
 root_logger.addHandler(file_handler)
 
 stderr_handler = logging.StreamHandler(stream=sys.stderr)
-stderr_handler.setLevel(logging.DEBUG)
+stderr_handler.setLevel(logging.NOTSET)
 stderr_handler.setFormatter(formatter)
 root_logger.addHandler(stderr_handler)
 
-root_logger.setLevel(logging.DEBUG)
+root_logger.setLevel(logging.NOTSET)
 
 logging.getLogger(__name__).info('Created log file at %s', log_path)
 

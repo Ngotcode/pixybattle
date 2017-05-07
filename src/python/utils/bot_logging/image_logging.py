@@ -117,45 +117,71 @@ class ImageCreator(object):
 
 
 class ImageLogger(object):
-    """Class which acts roughly like a logger, for dumping image files from blocks."""
-    def __init__(self, level, root=img_dir):
+    """Class which acts roughly like a logger, for dumping image files from blocks. Note that it is not a singleton (
+    i.e. loggers with the same name and different levels can be used), but they all share a counter for the purposes of 
+    naming files."""
+
+    count = 0
+
+    def __init__(self, name, level=logging.NOTSET, root=img_dir):
         """
         
         Parameters
         ----------
+        name : str
+            Image logger name (use __name__ unless you have a specific reason not to)
         level : int
-            Log severity threshold. Logs made below this level will not be saved as images.
+            Log severity threshold. Logs made below this level will not be saved as images. By default, all messages 
+            will be logged.
         root : str
             Path to the directory in which images should be saved.
         """
-        self.root = root
+        self.name = name
+        self.img_dir = root
         self.level = level
         self.image_creator = ImageCreator()
-        self.count = 0
+        self.logger = logging.getLogger(name)
 
-    def log(self, lvl, blocks):
+    def log(self, lvl, blocks, msg=''):
+        """
+        
+        Parameters
+        ----------
+        lvl : int
+            Severity level at which to log
+        blocks : array-like
+            Sequence of Blocks objects
+        msg : str
+            Optional message to include as image title
+        """
         if lvl < self.level:
             return
 
-        title = 'log{:04d}_{}'.format(self.count, logging.getLevelName(lvl))
+        level_name = logging.getLevelName(lvl)
 
-        file_path = os.path.join(self.root, title + '.png')
-        self.count += 1
+        file_path = os.path.join(self.img_dir, 'log_{}_{}.png'.format(self.count, level_name))
+        self.__class__.count += 1
 
+        title = '{}: [{}] {}'.format(level_name, self.name, msg)
         self.image_creator.save_file(blocks, file_path, title)
-        logger.log(lvl, 'Saved image to %s', file_path)
 
-    def debug(self, blocks):
-        self.log(logging.DEBUG, blocks)
+        log_msg = 'Saved image to {}{}'.format(file_path, '' if not msg else ' with message "{}"'.format(msg))
+        self.logger.log(lvl, log_msg)
 
-    def info(self, blocks):
-        self.log(logging.INFO, blocks)
+    def debug(self, blocks, msg=''):
+        self.log(logging.DEBUG, blocks, msg)
 
-    def warning(self, blocks):
-        self.log(logging.WARNING, blocks)
+    def info(self, blocks, msg=''):
+        self.log(logging.INFO, blocks, msg)
 
-    def error(self, blocks):
-        self.log(logging.ERROR, blocks)
+    def warning(self, blocks, msg=''):
+        self.log(logging.WARNING, blocks, msg)
 
-    def critical(self, blocks):
-        self.log(logging.CRITICAL, blocks)
+    def error(self, blocks, msg=''):
+        self.log(logging.ERROR, blocks, msg)
+
+    def critical(self, blocks, msg=''):
+        self.log(logging.CRITICAL, blocks, msg)
+
+    def setLevel(self, lvl=logging.NOTSET):
+        self.level = lvl
