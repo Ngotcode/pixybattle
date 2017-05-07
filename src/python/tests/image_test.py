@@ -6,13 +6,13 @@ import pytest
 
 from utils import bot_logging
 
-DEBUG = True
+DEBUG = False
 
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output', 'image_test')
 
 FakeBlock = namedtuple('FakeBlock', ['x', 'y', 'width', 'height', 'angle', 'signature'])
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('tests.image_test')
 
 
 @pytest.fixture
