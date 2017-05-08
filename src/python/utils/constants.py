@@ -28,21 +28,16 @@ class Behaviour(Enum):
     >>> if example_bot.behaviour == Behaviour.SEARCH:
     >>> ....example_bot.do_things()
     """
-
-    IDLE = 'idle'
-    """Stationary, non-scanning, will not change unless state is changed"""
-
+    
     SEARCH = 'search'
     """Looking for target while moving"""
+    
+    CHASE = 'chase'
+    """Target acquired, go towards it"""
 
-    APPROACH = 'approach'
-    """Target acquired, go towards it while firing"""
-
-    PAN = 'pan'
-    """Stationary, panning camera"""
+    FIRE = 'fire'
+    """Stationary, shoot"""
 
     KILLED = 'killed'
     """Recently shot: stationary for short period"""
 
-    PANIC = 'panic'
-    """Everything has gone wrong, spin around and shoot"""
