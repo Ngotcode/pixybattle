@@ -18,7 +18,7 @@ commands are skipped to save time. `test_import_*` should both fail in this mode
 from __future__ import division
 from utils.constants import MAX_MOTOR_SPEED, PIXY_RCS_PAN_CHANNEL
 import logging
-from utils.bot_logging import get_logger_name
+from utils.bot_logging import set_log_level
 import pytest
 import time
 
@@ -50,14 +50,18 @@ class DummyPixy(Dummy):
         assert isinstance(channel_arg, int)
 
 
+@pytest.mark.xfail
 def test_import_motors():
     from pololu_drv8835_rpi import motors
 
+
+@pytest.mark.xfail
 def test_import_pixy():
     from pixy import pixy
 
 
-logger = logging.getLogger(get_logger_name(logging.DEBUG))
+logger = logging.getLogger(__name__)
+set_log_level(logging.DEBUG)
 try:
     from pololu_drv8835_rpi import motors
 except:
