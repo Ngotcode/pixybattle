@@ -1,7 +1,55 @@
+"""
+Vision utilities
+
+Examples
+--------
+
+>>> from utils.vision import PixyBlock, Scene
+
+>>> count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, block_buffer)  # get camera output as usual
+>>> blocks = PixyBlock.from_ctypes_array(block_buffer, count)
+
+`blocks` is now a python list of `PixyBlock` objects - the ctypes block_buffer can be overwritten without changing it
+
+>>> block, block2 = blocks[:2]
+
+`block` has the same properties as the ctypes object
+>>> signature, x, y, width, height = block.signature, block.x, block.y, block.width, block.height
+
+`block` has some convenience properties
+>>> bounds = block.xmin, block.xmax, block.ymin, block.ymax
+>>> area, aspect_ratio, diagonal = block.area, block.aspect_ratio, block.diagonal
+
+and spatial functions
+>>> is_intersecting = block.intersects(block2)  # boolean
+>>> intersection_area = block.intersection(block2)
+>>> intersection_proportion = block.intersection_ppn(block2)  # as a portion of the larger block's area
+
+`PixyBlock`s can be merged
+>>> merged_block = PixyBlock.merge_blocks(block, block2)  # only works if they have the same signature
+Note: type and angle are ignored for now because I don't know what they do
+
+near-equality can be found (current implementation uses a threshold intersection proportion controlled by 
+`SIMILARITY_THRESHOLD`, but this can change)
+>>> is_probably_same_block = block.nearly_equals(block2)  # boolean
+
+# Scene is a wrapper for a set of PixyBlocks
+>>> scene1 = Scene.from_ctypes_array(block_buffer, count)  # or Scene(blocks, PixyBlock) if they're already PixyBlocks
+>>> count2 = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, block_buffer)  # sample again
+>>> scene2 = Scene.from_ctypes_array(block_buffer, count2)
+
+# scenes can be merged (e.g. take 2 pictures of the same thing, merge any objects which are nearly equal)
+>>> merged_scene = scene1.merge_with(scene2)
+
+# scenes can be diffed (e.g. take a picture, fire a shot, take another picture - has anything changed?)
+>>> new_blocks, disappeared_blocks = scene1.diff(scene2)
+"""
+
 from __future__ import division
 import itertools
 from random import Random
 from copy import copy
+from math import hypot
 
 import numpy as np
 import networkx as nx
@@ -22,13 +70,9 @@ class GenericBlock(object):
         self.width = width
         self.height = height
 
-        self.__key = None
-
     @property
     def _key(self):
-        if self.__key is None:
-            self.__key = tuple(getattr(self, key) for key in self.KEYS)
-        return self.__key
+        return tuple(getattr(self, key) for key in self.KEYS)
 
     @property
     def xmin(self):
@@ -54,6 +98,10 @@ class GenericBlock(object):
     def aspect_ratio(self):
         return self.width / self.height
 
+    @property
+    def diagonal(self):
+        return hypot(self.width, self.height)
+
     def __repr__(self):
         return '{}({{{}}})'.format(
             type(self).__name__,
@@ -69,6 +117,18 @@ class GenericBlock(object):
     def __lt__(self, other):
         return (self.x, self.y) < (other.xmin, other.ymin)
 
+    def x_overlap(self, other, check_sig=False):
+        if check_sig and self.signature != other.signature:
+            return 0
+
+        return max(0, min(self.xmax, other.xmax) - max(self.x, other.x))
+
+    def y_overlap(self, other, check_sig=False):
+        if check_sig and self.signature != other.signature:
+            return 0
+
+        return max(0, min(self.ymax, other.ymax) - max(self.y, other.y))
+
     def intersection_area(self, other, check_sig=False):
         """
         Find the area of the intersection between this block and another block.
@@ -82,12 +142,7 @@ class GenericBlock(object):
         -------
         int
         """
-        if check_sig and self.signature != other.signature:
-            return 0
-
-        x_overlap = max(0, min(self.xmax, other.xmax) - max(self.x, other.x))
-        y_overlap = max(0, min(self.ymax, other.ymax) - max(self.y, other.y))
-        return x_overlap * y_overlap
+        return self.x_overlap(other, check_sig) * self.y_overlap(other, check_sig)
 
     def intersects(self, other, check_sig=False):
         """Return whether this block intersects with the other block"""
@@ -132,10 +187,10 @@ class GenericBlock(object):
     @classmethod
     def merge_blocks(cls, *blocks):
         """
-        CLASS METHOD
-        
         Given any number of blocks, return a block which has the mean size and position of all of them.
         
+        N.B. only works if they all have the same signature
+
         Parameters
         ----------
         blocks
@@ -145,8 +200,7 @@ class GenericBlock(object):
         GenericBlock
         """
         signatures = set()
-        xs, ys, widths, heights = [], [], [], []
-
+        xs, ys, widths, heights = [], [], [], []  # todo: add types and angles after figuring out what they do
         for block in blocks:
             signatures.add(block.signature)
             xs.append(block.xmin)
@@ -208,32 +262,7 @@ class PixyBlock(GenericBlock):
         """
         return [cls.from_ctypes(ctypes_blocks[i]) for i in range(count)]
 
-    @classmethod
-    def merge_blocks(cls, *blocks):
-        """
-        Given any number of other blocks, return a block which has the mean size and position of all of them.
-
-        Parameters
-        ----------
-        blocks
-
-        Returns
-        -------
-        GenericBlock
-        """
-        signatures = set()
-        xs, ys, widths, heights = [], [], [], []  # todo: add types and angles after figuring out what they do
-        for block in blocks:
-            signatures.add(block.signature)
-            xs.append(block.xmin)
-            ys.append(block.ymin)
-            widths.append(block.width)
-            heights.append(block.height)
-
-        assert len(signatures) == 1
-
-        x, y, width, height = np.mean([xs, ys, widths, heights], axis=1)
-        return cls(signatures.pop(), x, y, width, height)
+    # todo: override GenericBlock.merge_blocks to account for `type` and `angle`
 
 
 def nearly_equal_pairs(blocks_1, blocks_2=None, threshold=SIMILARITY_THRESHOLD):
@@ -251,7 +280,8 @@ def nearly_equal_pairs(blocks_1, blocks_2=None, threshold=SIMILARITY_THRESHOLD):
 
     Returns
     -------
-
+    set
+        Pairs of blocks which are nearly equal
     """
     out = set()
     if blocks_2 is None:
@@ -267,6 +297,22 @@ def nearly_equal_pairs(blocks_1, blocks_2=None, threshold=SIMILARITY_THRESHOLD):
 
 
 def merge_similar_blocks(blocks_1, blocks_2=None, block_constructor=GenericBlock):
+    """
+    Given either one or two sequences of blocks, find pairs of near-equal blocks.
+    
+    Parameters
+    ----------
+    blocks_1
+    blocks_2
+        Default None
+    block_constructor : type
+        GenericBlock or PixyBlock
+
+    Returns
+    -------
+    set
+        Set of blocks which contains all given blocks, with any nearly_equal components merged
+    """
     g = nx.Graph()
     g.add_nodes_from(itertools.chain(blocks_1, blocks_2) if blocks_2 else blocks_1)
     g.add_edges_from(nearly_equal_pairs(blocks_1, blocks_2, threshold=SIMILARITY_THRESHOLD))
@@ -292,6 +338,7 @@ class Scene(object):
         blocks : sequence
             Python block objects
         block_constructor : type
+            GenericBlock or PixyBlock
         """
         self.blocks = set(blocks)
         self.block_constructor = block_constructor
@@ -313,7 +360,7 @@ class Scene(object):
         blocks = PixyBlock.from_ctypes_array(pixy_blocks, count)
         return cls(blocks, PixyBlock)
 
-    def merge(self, other):
+    def merge_with(self, other):
         """
         Union two scenes, merging any similar blocks.
         
@@ -353,6 +400,7 @@ class Scene(object):
 
 
 # DIAGNOSTICS
+
 
 class BlockJitterer(object):
     """Class for generating large numbers of very similar blocks"""
