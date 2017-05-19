@@ -2,14 +2,8 @@
 
 from __future__ import division
 import logging
-from random import Random
-from copy import copy
 
 import pytest
-import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot as plt
 
 from utils import vision
 from utils.bot_logging import set_log_level
@@ -18,10 +12,6 @@ logger = logging.getLogger(__name__)
 set_log_level(logging.DEBUG)
 
 SMALL_NUMBER = 0.01
-
-TARGET_SIGMA = 0.01
-TARGET_CONFIDENCE = 0.95
-REPLICATES = 1000
 
 
 # CONVENIENCE CLASSES
@@ -123,10 +113,8 @@ def test_near_equality_signature():
 
 
 def test_near_equality_power():
-    block = vision.GenericBlock(1, 0, 0, 1, 1)
-    result = vision.near_equality_accuracy_for_sigma(block, TARGET_SIGMA, REPLICATES)
-
-    assert result > TARGET_CONFIDENCE
+    result = vision.near_equality_accuracy_for_sigma(vision.TARGET_SIGMA, vision.REPLICATES)
+    assert result > vision.TARGET_CONFIDENCE
 
 
 def test_nearly_equal_pairs_combinations():
@@ -181,7 +169,10 @@ def test_merge_blocks():
     assert len(new_blocks) == 2
     assert block4 in new_blocks
     assert vision.GenericBlock.merge_blocks(block1, block2, block3) in new_blocks
+
+
 # SCENE TESTS
+
 
 def test_merge_scene():
     factory = BlockFactory()

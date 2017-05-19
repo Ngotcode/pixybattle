@@ -5,9 +5,6 @@ from copy import copy
 
 import numpy as np
 import networkx as nx
-import matplotlib
-matplotlib.use('TkAgg')
-from matplotlib import pyplot as plt
 
 
 SIMILARITY_THRESHOLD = 0.9
@@ -358,6 +355,8 @@ class Scene(object):
 # DIAGNOSTICS
 
 class BlockJitterer(object):
+    """Class for generating large numbers of very similar blocks"""
+
     def __init__(self, sigma, seed=1, constructor=GenericBlock):
         self.random = Random(seed)
         self.sigma = sigma
@@ -375,20 +374,32 @@ class BlockJitterer(object):
         return new_block
 
 
-def near_equality_accuracy_for_sigma(block, sigma, replicates):
+def near_equality_accuracy_for_sigma(sigma, replicates):
+    """For a given standard deviation, find the proportion of blocks correctly identified as nearly equal"""
+    block = GenericBlock(1, 0, 0, 1, 1)
     jitterer = BlockJitterer(sigma=sigma, seed=1)
     return sum(block.nearly_equals(jittered) for jittered in jitterer.jitter_blocks(block, replicates)) / replicates
 
 
+TARGET_SIGMA = 0.02
+TARGET_CONFIDENCE = 0.95
+REPLICATES = 500
+
+
 def plot_near_equality_power():
-    TARGET_SIGMA = 0.05
-    TARGET_CONFIDENCE = 0.95
-    REPLICATES = 500
+    """
+    This can certainly be done analytically, but numerically was easier.
 
-    block = GenericBlock(1, 0, 0, 1, 1)
+    Plot the proportion of blocks correctly identified as nearly equal, for varying amounts of noise (sigma).
 
+    We want the blue line to be passing above and to the right of the red/green cross (this is represented in the 
+    tests).
+
+    However, if we go too far in that direction, we will pick up a lot of false positives (there is currently no test 
+    for this).
+    """
     sigmas = np.linspace(0, TARGET_SIGMA * 2, 101, True)
-    results = [near_equality_accuracy_for_sigma(block, sigma, REPLICATES) for sigma in sigmas]
+    results = [near_equality_accuracy_for_sigma(sigma, REPLICATES) for sigma in sigmas]
 
     fig, ax = plt.subplots()
     ax.plot(sigmas, results, c='blue', label='near_equals() performance')
@@ -401,4 +412,8 @@ def plot_near_equality_power():
 
 
 if __name__ == '__main__':
+    import matplotlib
+    matplotlib.use('TkAgg')
+    from matplotlib import pyplot as plt
+
     plot_near_equality_power()
