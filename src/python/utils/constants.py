@@ -34,6 +34,12 @@ TILT_DERIVATIVE_GAIN = 400
 MAX_MOTOR_SPEED = 300  # 480
 MIN_MOTOR_SPEED = -480
 
+# LASER CONSTANTS
+LASER_TIMEOUT = 1  # seconds
+SERIAL_DEVICE = '/dev/ttyACM0'
+BAUD_RATE = 9600
+
+
 # BEHAVIOURAL STATES
 
 class Behaviour(Enum):
@@ -48,10 +54,10 @@ class Behaviour(Enum):
     >>> if example_bot.behaviour == Behaviour.SEARCH:
     >>> ....example_bot.do_things()
     """
-    
+
     SEARCH = 'search'
     """Looking for target while moving"""
-    
+
     CHASE = 'chase'
     """Target acquired, go towards it"""
 
