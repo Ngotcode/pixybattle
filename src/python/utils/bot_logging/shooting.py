@@ -18,6 +18,14 @@ Instruct the laser commander
 
 You must remember to stand down the commander!
 >>> lt_worf.stand_down()
+
+You can use the Laser Commander in a `with` statement so that you don't have to remember anything, and errors are 
+handled better:
+
+>>> with LaserCommander() as lt_worf:
+>>>     lt_worf.fire_at_will()
+
+The Commander will be stood down automatically upon leaving the `with` statement (including error cases)
 """
 
 from multiprocessing import Process, Pipe
@@ -40,12 +48,12 @@ class Command(Enum):
 
 
 class LaserCommander(object):
-    _instance = None
+    __instance = None
 
     def __init__(self):
         self._conn, laser_conn = Pipe()
         self._laser = AutoLaser(laser_conn, False, LASER_TIMEOUT)
-        self.stood_down = False
+        self.__stood_down = False
 
     def start(self):
         self._laser.start()
@@ -54,6 +62,10 @@ class LaserCommander(object):
         if self.stood_down:
             raise ValueError('Cannot send command to stood-down Laser Commander - create a new one.')
         self._conn.send(command)
+
+    @property
+    def stood_down(self):
+        return self.__stood_down
 
     def fire_once(self):
         self._send_command(Command.FIRE_ONCE)
@@ -66,16 +78,16 @@ class LaserCommander(object):
 
     def stand_down(self):
         self._send_command(Command.STAND_DOWN)
-        self.stood_down = False
+        self.__stood_down = False
         self._laser.join()
-        self._instance = None
+        self.__instance = None
 
     @classmethod
     def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = object.__new__(cls)
+        if cls.__instance is None:
+            cls.__instance = object.__new__(cls)
 
-        return cls._instance
+        return cls.__instance
 
     def __enter__(self):
         self.start()
