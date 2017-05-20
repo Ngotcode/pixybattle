@@ -5,7 +5,7 @@ from enum import Enum
 # PATHS
 
 ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '../../..'))
-assert os.path.split(ROOT_DIR)[-1] == 'pixybattle'  # make sure the relative path works
+# assert os.path.split(ROOT_DIR)[-1] == 'pixybattle'  # make sure the relative path works
 
 # defining PixyCam sensory variables
 PIXY_MIN_X = 0
@@ -52,7 +52,7 @@ class Behaviour(Enum):
     Fictitious robot API for demonstrative purposes
     >>> example_bot.set_behaviour(Behaviour.SEARCH)
     >>> if example_bot.behaviour == Behaviour.SEARCH:
-    >>> ....example_bot.do_things()
+    >>>     example_bot.do_things()
     """
 
     SEARCH = 'search'
