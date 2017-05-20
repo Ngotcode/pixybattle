@@ -51,8 +51,9 @@ from utils.constants import LASER_COOLDOWN, SERIAL_DEVICE, BAUD_RATE
 
 POLL_INTERVAL = 0.001  # small delay to prevent polling threads consuming 100% CPU
 
+logger = logging.getLogger(__name__)
 
-class DeadDrop(Queue):
+class DeadDrop(object):
     """
     A Queue which holds only a single object and overwrites it as more are put in. Useful for communicating state 
     between processes in a memoryless fashion.
@@ -60,7 +61,7 @@ class DeadDrop(Queue):
     MAX_SIZE = 1
 
     def __init__(self):
-        super(DeadDrop, self).__init__(type(self).MAX_SIZE)
+        self.q = Queue(type(self).MAX_SIZE)
 
     def put(self, item):
         """
@@ -75,13 +76,13 @@ class DeadDrop(Queue):
         ------
         multiprocessing.queues.Full
         """
-        self._wlock.acquire()
-        self._rlock.acquire()
-        while not self.empty():
-            self.get()
-        super(DeadDrop, self).put(item, block=False)
-        self._wlock.release()
-        self._rlock.release()
+        # timeouts required because multiprocessing is dumb
+        try:
+            self.q.get(timeout=POLL_INTERVAL)
+        except Empty:
+            pass
+
+        self.q.put(item, timeout=POLL_INTERVAL)
 
     def get(self, default=None):
         """
@@ -102,12 +103,18 @@ class DeadDrop(Queue):
         multiprocessing.queues.Empty
         """
         try:
-            return super(DeadDrop, self).get(block=False)
+            return self.q.get(timeout=POLL_INTERVAL)
         except Empty as e:
             if default is None:
                 raise e
             else:
                 return default
+
+    def empty(self):
+        return self.q.empty()
+
+    def qsize(self):
+        return self.q.qsize()
 
 
 class Command(Enum):
