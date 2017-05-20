@@ -12,12 +12,15 @@ Start the laser controller process
 >>> lt_worf.start()
 
 Instruct the laser commander
+>>> lt_worf.fire_once()
 >>> lt_worf.fire_at_will()
 >>> lt_worf.hold_fire()
->>> lt_worf.fire_once()
 
 By default, `fire_once` blocks execution until the laser reports that it has fired, but this can be disabled by passing 
 `False`.
+
+By default, `fire_at_will` does not block. To make it block until the laser has reported that it has fired one shot, 
+pass `True`.
 
 To fire multiple times in a row, blocking between each shot, use
 >>> lt_worf.fire_multiple(n)  # fire n shots
@@ -37,6 +40,7 @@ The Commander will be stood down automatically upon leaving the `with` statement
 
 from multiprocessing import Process, Queue
 from multiprocessing.queues import Empty
+import logging
 
 from enum import Enum
 import serial
@@ -108,10 +112,10 @@ class DeadDrop(Queue):
 
 class Command(Enum):
     """Enumerate the commands which the laser can execute"""
-    FIRE_ONCE = 'fire_once'
-    FIRE_AT_WILL = 'fire_at_will'
-    HOLD_FIRE = 'hold_fire'
-    STAND_DOWN = 'stand_down'
+    FIRE_ONCE = 'fire once'
+    FIRE_AT_WILL = 'fire at will'
+    HOLD_FIRE = 'hold fire'
+    STAND_DOWN = 'stand down'
 
 
 class LaserCommander(object):
@@ -120,17 +124,24 @@ class LaserCommander(object):
 
     def __init__(self):
         self._laser_input, self._laser_output = DeadDrop(), DeadDrop()
-        self._laser = AutoLaser(self._laser_input, self._laser_output, False, LASER_COOLDOWN)
+        self._laser = LaserProcess(self._laser_input, self._laser_output, False, LASER_COOLDOWN)
         self.__stood_down = False
         self.__last_fired = None
+        self.logger = logging.getLogger(type(self).__name__)
+        self.started = False
 
     def start(self):
         """Start the underlying AutoLaser process"""
+        self.logger.debug('Starting laser process')
         self._laser.start()
+        self.started = True
 
     def _send_command(self, command):
+        self.logger.info('Sending laser command: "%s"'.format(command))
         if self.stood_down:
             raise ValueError('Cannot send command to stood-down Laser Commander - create a new one.')
+        if not self.started:
+            raise ValueError('Cannot send command to Laser Commander which has not been started')
         self._laser_input.put(command)
 
     @property
@@ -206,7 +217,7 @@ class LaserCommander(object):
         self.stand_down()
 
 
-class AutoLaser(Process):
+class LaserProcess(Process):
     """Separate python process which can operate the laser independently of the main thread"""
 
     def __init__(self, input_drop, output_drop, firing=False, timeout=LASER_COOLDOWN):
@@ -223,17 +234,20 @@ class AutoLaser(Process):
         timeout : float
             Cooldown in seconds between laser shots
         """
-        super(AutoLaser, self).__init__()
+        super(LaserProcess, self).__init__()
         self.input_drop = input_drop
         self.output_drop = output_drop
         self.firing = firing
         self.timeout = timeout
         self.ser = serial.Serial(SERIAL_DEVICE, BAUD_RATE)  # todo: handle failure to acquire serial
+        self.logger = None
 
     def run(self):
+        self.logger = logging.getLogger(type(self).__name__)
         while True:
             try:
                 command = self.input_drop.get()
+                self.logger.debug('Received command: %s', command)
                 if command == Command.FIRE_ONCE:
                     self.firing = False
                     self._fire()
@@ -242,7 +256,6 @@ class AutoLaser(Process):
                     self._fire()
                 elif command == Command.HOLD_FIRE:
                     self.firing = False
-                    time.sleep(POLL_INTERVAL)
                 elif command == Command.STAND_DOWN:
                     return
                 else:
@@ -250,9 +263,12 @@ class AutoLaser(Process):
             except Empty:
                 if self.firing:
                     self._fire()
+                else:
+                    time.sleep(POLL_INTERVAL)
 
     def _fire(self):
         """Fire the laser, record the timestamp, and block this process for the cooldown period"""
+        self.logger.debug('Firing!')
         self.ser.write("FIRE\n")
         # todo: get response signal from ser?
         self.output_drop.put(time.time())
