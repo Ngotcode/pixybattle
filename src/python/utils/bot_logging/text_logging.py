@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 
-from logging_constants import LOG_DIR
+from logging_constants import LOG_DIR, LOG_PATH
 
 
 class TimerFormatter(logging.Formatter):
@@ -28,9 +28,7 @@ if not os.path.isdir(LOG_DIR):
 
 formatter = TimerFormatter('%(adjustedTime)s %(adjustedLevel)s: [%(name)s] %(message)s')
 
-log_path = os.path.join(LOG_DIR, 'log.txt')
-
-file_handler = logging.FileHandler(filename=log_path)
+file_handler = logging.FileHandler(filename=LOG_PATH)
 file_handler.setLevel(logging.NOTSET)
 file_handler.setFormatter(formatter)
 root_logger.addHandler(file_handler)
@@ -42,7 +40,7 @@ root_logger.addHandler(stderr_handler)
 
 root_logger.setLevel(logging.NOTSET)
 
-logging.getLogger(__name__).info('Created log file at %s', log_path)
+logging.getLogger(__name__).info('Created log file at %s', LOG_PATH)
 
 
 def set_log_level(level=logging.DEBUG):
