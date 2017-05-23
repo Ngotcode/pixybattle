@@ -1,6 +1,12 @@
 import os
-from enum import Enum
+import time
+import logging
 
+from enum import Enum
+import serial
+
+
+logger = logging.getLogger(__name__)
 
 # PATHS
 
@@ -36,8 +42,32 @@ MIN_MOTOR_SPEED = -480
 
 # LASER CONSTANTS
 LASER_COOLDOWN = 1  # seconds
-SERIAL_DEVICE = '/dev/ttyACM0'
-BAUD_RATE = 9600
+
+
+# todo: may not be necessary
+class PixySerial(object):
+    RETRY_INTERVAL = 10  # seconds
+    SERIAL_DEVICE = '/dev/ttyACM0'
+    BAUD_RATE = 9600
+    _serial = None
+
+    def __init__(self):
+        raise ValueError(
+            'PixySerial is an abstract class and should not be instantiated. Call PixySerial.get() instead.'
+        )
+
+    @classmethod
+    def get(cls):
+        while cls._serial is None:
+            try:
+                cls._serial = serial.Serial(cls.SERIAL_DEVICE, cls.BAUD_RATE)
+                break
+            except:
+                logger.warning(
+                    "Could not open serial device {}, retrying in {}s".format(cls.SERIAL_DEVICE, cls.RETRY_INTERVAL)
+                )
+                time.sleep(10)
+        return cls._serial
 
 
 # BEHAVIOURAL STATES
