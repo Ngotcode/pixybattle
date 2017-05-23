@@ -43,13 +43,13 @@ from multiprocessing.queues import Empty
 import logging
 
 from enum import Enum
-import serial
 import time
 
-from utils.constants import LASER_COOLDOWN, SERIAL_DEVICE, BAUD_RATE
+from utils.constants import LASER_COOLDOWN, PixySerial
 
 
-POLL_INTERVAL = 0.001  # small delay to prevent polling threads consuming 100% CPU
+POLL_INTERVAL = 0.01  # small delay to prevent polling threads consuming 100% CPU
+READY_SIGNAL = -1
 
 logger = logging.getLogger(__name__)
 
@@ -120,18 +120,19 @@ class LaserCommander(object):
         self._command_queue, self._timestamp_queue = Queue(1), Queue(1)
         self._laser = LaserProcess(self._command_queue, self._timestamp_queue, False, LASER_COOLDOWN)
         self.__stood_down = False
-        self.__last_fired = None
+        self.__last_fired = -1
         self.logger = logging.getLogger(type(self).__name__)
         self.started = False
 
     def start(self):
-        """Start the underlying AutoLaser process"""
+        """Start the underlying AutoLaser process; blocks until laser is ready"""
         self.logger.debug('Starting laser process')
         self._laser.start()
+        assert self._timestamp_queue.get() == READY_SIGNAL
         self.started = True
 
     def _send_command(self, command):
-        self.logger.info('Sending laser command: "%s"'.format(command))
+        self.logger.info('Sending laser command: "%s"', command)
         if self.stood_down:
             raise ValueError('Cannot send command to stood-down Laser Commander - create a new one.')
         if not self.started:
@@ -233,14 +234,17 @@ class LaserProcess(Process):
         self.timestamp_queue = timestamp_queue
         self.firing = firing
         self.cooldown = cooldown
-        self.ser = serial.Serial(SERIAL_DEVICE, BAUD_RATE)  # todo: handle failure to acquire serial
+        self.ser = None
         self.logger = None
 
     def run(self):
         self.logger = logging.getLogger(type(self).__name__)
+
+        self.setup_serial()
+
         while True:
             try:
-                command = self.command_queue.get()
+                command = self.command_queue.get(timeout=POLL_INTERVAL)
                 self.logger.debug('Received command: %s', command)
                 if command == Command.FIRE_ONCE:
                     self.firing = False
@@ -266,4 +270,10 @@ class LaserProcess(Process):
         self.ser.write("FIRE\n")
         # todo: get response signal from ser?
         put_singular(self.timestamp_queue, time.time())
+        self.logger.debug('Laser cooling for {}s'.format(self.cooldown))
         time.sleep(self.cooldown)
+
+    def setup_serial(self):
+        if self.ser is None:
+            self.ser = PixySerial.get()
+        self.timestamp_queue.put(READY_SIGNAL)
