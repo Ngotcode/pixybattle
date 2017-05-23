@@ -53,68 +53,55 @@ POLL_INTERVAL = 0.001  # small delay to prevent polling threads consuming 100% C
 
 logger = logging.getLogger(__name__)
 
-class DeadDrop(object):
+
+def put_singular(queue, item):
     """
-    A Queue which holds only a single object and overwrites it as more are put in. Useful for communicating state 
-    between processes in a memoryless fashion.
+    Put item in the queue, removing any other items if the queue is not empty. Non-blocking because it always 
+    empties the list before attempting an insert.
+    
+    Parameters
+    ----------
+    queue : multiprocessing.Queue
+    item : object
+    
+    Raises
+    ------
+    multiprocessing.queues.Empty
     """
-    MAX_SIZE = 1
+    # timeouts required because multiprocessing is dumb
+    try:
+        while True:
+            queue.get(timeout=POLL_INTERVAL)
+    except Empty:
+        queue.put(item, timeout=POLL_INTERVAL)
 
-    def __init__(self):
-        self.q = Queue(type(self).MAX_SIZE)
 
-    def put(self, item):
-        """
-        Put item in the queue, removing any other items if the queue is not empty. Non-blocking because it always 
-        empties the list before attempting an insert.
-        
-        Parameters
-        ----------
-        item : object
-        
-        Raises
-        ------
-        multiprocessing.queues.Full
-        """
-        # timeouts required because multiprocessing is dumb
-        try:
-            self.q.get(timeout=POLL_INTERVAL)
-        except Empty:
-            pass
+def get_with_default(queue, default=None):
+    """
+    Get the item from the queue if it exists. If the queue is empty and a default is supplied, return that; 
+    otherwise raise multiprocessing.queues.Empty.
+    
+    Parameters
+    ----------
+    queue : multiprocessing.Queue
+    default
+        Default value to return if queue is empty.
 
-        self.q.put(item, timeout=POLL_INTERVAL)
-
-    def get(self, default=None):
-        """
-        Get the item from the DeadDrop if it exists. If the DeadDrop is empty and a default is supplied, return that; 
-        otherwise raise multiprocessing.queues.Empty.
-        
-        Parameters
-        ----------
-        default
-            Default value to return if DeadDrop is empty.
-
-        Returns
-        -------
-        object
-        
-        Raises
-        ------
-        multiprocessing.queues.Empty
-        """
-        try:
-            return self.q.get(timeout=POLL_INTERVAL)
-        except Empty as e:
-            if default is None:
-                raise e
-            else:
-                return default
-
-    def empty(self):
-        return self.q.empty()
-
-    def qsize(self):
-        return self.q.qsize()
+    Returns
+    -------
+    object
+    
+    Raises
+    ------
+    multiprocessing.queues.Empty
+    """
+    try:
+        return queue.get(timeout=POLL_INTERVAL)
+    except Empty as e:
+        if default is None:
+            raise e
+        else:
+            return default
 
 
 class Command(Enum):
@@ -130,8 +117,8 @@ class LaserCommander(object):
     __instance = None
 
     def __init__(self):
-        self._laser_input, self._laser_output = DeadDrop(), DeadDrop()
-        self._laser = LaserProcess(self._laser_input, self._laser_output, False, LASER_COOLDOWN)
+        self._command_queue, self._timestamp_queue = Queue(1), Queue(1)
+        self._laser = LaserProcess(self._command_queue, self._timestamp_queue, False, LASER_COOLDOWN)
         self.__stood_down = False
         self.__last_fired = None
         self.logger = logging.getLogger(type(self).__name__)
@@ -149,7 +136,7 @@ class LaserCommander(object):
             raise ValueError('Cannot send command to stood-down Laser Commander - create a new one.')
         if not self.started:
             raise ValueError('Cannot send command to Laser Commander which has not been started')
-        self._laser_input.put(command)
+        put_singular(self._command_queue, command)
 
     @property
     def stood_down(self):
@@ -159,7 +146,7 @@ class LaserCommander(object):
     @property
     def last_fired(self):
         """Float timestamp, in seconds since the Epoch, when the laser last fired."""
-        self.__last_fired = self._laser_output.get(default=self.__last_fired)
+        self.__last_fired = get_with_default(self._timestamp_queue, self.__last_fired)
         return self.__last_fired
 
     def fire_multiple(self, shots=1):
@@ -227,25 +214,25 @@ class LaserCommander(object):
 class LaserProcess(Process):
     """Separate python process which can operate the laser independently of the main thread"""
 
-    def __init__(self, input_drop, output_drop, firing=False, timeout=LASER_COOLDOWN):
+    def __init__(self, command_queue, timestamp_queue, firing=False, cooldown=LASER_COOLDOWN):
         """
         
         Parameters
         ----------
-        input_drop : DeadDrop
+        command_queue : multiprocessing.Queue
             DeadDrop from which the laser will receive commands
-        output_drop : DeadDrop
+        timestamp_queue : multiprocessing.Queue
             DeadDrop to which the laser will record its last fire time
         firing : bool
             Whether the laser is currently in 'fire at will' mode
-        timeout : float
+        cooldown : float
             Cooldown in seconds between laser shots
         """
         super(LaserProcess, self).__init__()
-        self.input_drop = input_drop
-        self.output_drop = output_drop
+        self.command_queue = command_queue
+        self.timestamp_queue = timestamp_queue
         self.firing = firing
-        self.timeout = timeout
+        self.cooldown = cooldown
         self.ser = serial.Serial(SERIAL_DEVICE, BAUD_RATE)  # todo: handle failure to acquire serial
         self.logger = None
 
@@ -253,7 +240,7 @@ class LaserProcess(Process):
         self.logger = logging.getLogger(type(self).__name__)
         while True:
             try:
-                command = self.input_drop.get()
+                command = self.command_queue.get()
                 self.logger.debug('Received command: %s', command)
                 if command == Command.FIRE_ONCE:
                     self.firing = False
@@ -278,5 +265,5 @@ class LaserProcess(Process):
         self.logger.debug('Firing!')
         self.ser.write("FIRE\n")
         # todo: get response signal from ser?
-        self.output_drop.put(time.time())
-        time.sleep(self.timeout)
+        put_singular(self.timestamp_queue, time.time())
+        time.sleep(self.cooldown)
