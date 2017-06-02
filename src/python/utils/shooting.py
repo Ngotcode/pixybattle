@@ -5,8 +5,8 @@ Examples
 --------
 
 Import and instantiate our laser commander
->>> from utils.shooting import LaserCommander
->>> lt_worf = LaserCommander()
+>>> from utils.shooting import WeaponsOfficer
+>>> lt_worf = WeaponsOfficer()
 
 Start the laser controller process
 >>> lt_worf.start()
@@ -16,11 +16,11 @@ Instruct the laser commander
 >>> lt_worf.fire_at_will()
 >>> lt_worf.hold_fire()
 
-By default, `fire_once` blocks execution until the laser reports that it has fired, but this can be disabled by passing 
-`False`.
+`fire_once` blocks execution until the laser reports that it has fired. A timeout can be passed in to prevent it from
+waiting indefinitely.
 
-By default, `fire_at_will` does not block. To make it block until the laser has reported that it has fired one shot, 
-pass `True`.
+By default, `fire_at_will` does not block. To make it block until the laser has reported that it has fired one shot,
+pass `True` as the first argument - again, a timeout can be passed as a second argument.
 
 To fire multiple times in a row, blocking between each shot, use
 >>> lt_worf.fire_multiple(n)  # fire n shots
@@ -31,167 +31,124 @@ Find out when the laser last fired (updated automatically)
 You must remember to stand down the commander!
 >>> lt_worf.stand_down()
 
-You can (/should) use the Laser Commander in a `with` statement so that you don't have to remember anything, and errors 
+You can (/should) use the Laser Commander in a `with` statement so that you don't have to remember anything, and errors
 are handled better:
->>> with LaserCommander() as lt_worf:
+>>> with WeaponsOfficer() as lt_worf:
 >>>     lt_worf.fire_at_will()
 The Commander will be stood down automatically upon leaving the `with` statement (including error cases)
 """
 
-from multiprocessing import Process, Queue
-from multiprocessing.queues import Empty
+from multiprocessing import Process, Value
 import logging
-
-from enum import Enum
 import time
 
-from utils.constants import LASER_COOLDOWN, PixySerial
+from utils.constants import LASER_COOLDOWN, RECOVERY, PixySerial
 
 
-POLL_INTERVAL = 0.01  # small delay to prevent polling threads consuming 100% CPU
+POLL_INTERVAL = 0.001  # small delay to prevent polling threads consuming 100% CPU
+
+INITIAL_VALUE = -2
 READY_SIGNAL = -1
 
 logger = logging.getLogger(__name__)
 
 
-def put_singular(queue, item):
-    """
-    Put item in the queue, removing any other items if the queue is not empty. Non-blocking because it always 
-    empties the list before attempting an insert.
-    
-    Parameters
-    ----------
-    queue : multiprocessing.Queue
-    item : object
-    
-    Raises
-    ------
-    multiprocessing.queues.Empty
-    """
-    # timeouts required because multiprocessing is dumb
-    try:
-        while True:
-            queue.get(timeout=POLL_INTERVAL)
-    except Empty:
-        queue.put(item, timeout=POLL_INTERVAL)
-
-
-def get_with_default(queue, default=None):
-    """
-    Get the item from the queue if it exists. If the queue is empty and a default is supplied, return that; 
-    otherwise raise multiprocessing.queues.Empty.
-    
-    Parameters
-    ----------
-    queue : multiprocessing.Queue
-    default
-        Default value to return if queue is empty.
-
-    Returns
-    -------
-    object
-    
-    Raises
-    ------
-    multiprocessing.queues.Empty
-    """
-    try:
-        return queue.get(timeout=POLL_INTERVAL)
-    except Empty as e:
-        if default is None:
-            raise e
-        else:
-            return default
-
-
-class Command(Enum):
-    """Enumerate the commands which the laser can execute"""
-    FIRE_ONCE = 'fire once'
-    FIRE_AT_WILL = 'fire at will'
-    HOLD_FIRE = 'hold fire'
-    STAND_DOWN = 'stand down'
-
-
-class LaserCommander(object):
+class WeaponsOfficer(object):
     """Class for controlling the behaviour of the laser in a fire-and-forget fashion."""
     __instance = None
 
     def __init__(self):
-        self._command_queue, self._timestamp_queue = Queue(1), Queue(1)
-        self._laser = LaserProcess(self._command_queue, self._timestamp_queue, False, LASER_COOLDOWN)
-        self.__stood_down = False
-        self.__last_fired = -1
+        self.console = WeaponsConsole()
+        self.weapons_system = WeaponsSystem(self.console)
         self.logger = logging.getLogger(type(self).__name__)
-        self.started = False
 
     def start(self):
-        """Start the underlying AutoLaser process; blocks until laser is ready"""
+        """Start the underlying WeaponsSystem process; blocks until laser is ready"""
         self.logger.debug('Starting laser process')
-        self._laser.start()
-        assert self._timestamp_queue.get() == READY_SIGNAL
-        self.started = True
-
-    def _send_command(self, command):
-        self.logger.info('Sending laser command: "%s"', command)
-        if self.stood_down:
-            raise ValueError('Cannot send command to stood-down Laser Commander - create a new one.')
-        if not self.started:
-            raise ValueError('Cannot send command to Laser Commander which has not been started')
-        put_singular(self._command_queue, command)
-
-    @property
-    def stood_down(self):
-        """Boolean, whether the LaserCommander is stood down"""
-        return self.__stood_down
+        self.weapons_system.start()
+        while self.console.last_fired < READY_SIGNAL:
+            time.sleep(POLL_INTERVAL)
 
     @property
     def last_fired(self):
         """Float timestamp, in seconds since the Epoch, when the laser last fired."""
-        self.__last_fired = get_with_default(self._timestamp_queue, self.__last_fired)
-        return self.__last_fired
+        return self.console.last_fired
 
-    def fire_multiple(self, shots=1):
+    @property
+    def last_hit(self):
+        return self.console.last_hit
+
+    @property
+    def is_disabled(self):
+        return self.console.is_disabled
+
+    def fire_multiple(self, shots=1, timeout_per_shot=None):
         """
-        Fire the given number of times as fast as possible, blocking between each one
-        
+        Fire the given number of times as fast as possible, blocking between each one until the laser has fired.
+
         Parameters
         ----------
         shots : int
             How many shots to fire
+        timeout_per_shot : float
+            Maximum time to wait for each shot. If None (default), it will wait indefinitely.
         """
+        results = []
         for _ in range(shots):
-            self.fire_once(True)
+            results.append(self.fire_once(timeout_per_shot))
 
-    def fire_once(self, block=True):
+        return results
+
+    def fire_once(self, timeout=None):
         """
-        Fire the laser once and then return it to the 'hold fire' state. Does not wait for the laser to cool down.
-        
+        Fire the laser once and then return it to the 'hold fire' state, blocking execution until the laser has fired.
+
         Parameters
         ----------
-        block : boolean
-            Whether to wait for the laser to fire before continuing execution
-        """
-        previous_fire = self.last_fired
-        self._send_command(Command.FIRE_ONCE)
-        if block:
-            while self.last_fired == previous_fire:
-                time.sleep(POLL_INTERVAL)
+        timeout : float
+            Maximum time to wait for laser to fire. If None (default), it will wait indefinitely.
 
-    def fire_at_will(self, block=False):
-        """Fire the laser as fast as possible, indefinitely"""
+        Returns
+        -------
+        bool
+            Whether the laser successfully fired in the time given
+        """
+        previous_fire = self.console.last_fired
+        self.console.firing = True
+        result = self.console.wait_for_change('last_fired', previous_fire, timeout)
+        self.console.firing = False
+        return result
+
+    def fire_at_will(self, block=False, timeout=None):
+        """
+        Fire the laser as often as possible, indefinitely.
+
+        Parameters
+        ----------
+        block : bool
+            Whether to wait until the laser has fired at least once before continuing execution
+        timeout : float
+            Timeout for first laser shot (ignored if `block` is False). If None (default), it will wait indefinitely.
+
+        Returns
+        -------
+        bool or None
+            If block is True, a boolean is returned for whether the laser successfully fired before the timeout.
+        """
+        result = None
         if block:
-            self.fire_once(True)
-        self._send_command(Command.FIRE_AT_WILL)
+            result = self.fire_once(timeout)
+        self.console.firing = True
+        return result
 
     def hold_fire(self):
         """Stop firing the laser"""
-        self._send_command(Command.HOLD_FIRE)
+        self.console.firing = False
 
     def stand_down(self):
         """Stop firing the laser and close the underlying process. Blocks until the process is closed."""
-        self._send_command(Command.STAND_DOWN)
-        self.__stood_down = True
-        self._laser.join()
+        self.console.stood_down = True
+        self.weapons_system.join()
         self.__instance = None
 
     @classmethod
@@ -212,68 +169,117 @@ class LaserCommander(object):
         self.stand_down()
 
 
-class LaserProcess(Process):
-    """Separate python process which can operate the laser independently of the main thread"""
+class WeaponsConsole(object):
+    """Object for passing commands into, and getting feedback from, weapons system"""
 
-    def __init__(self, command_queue, timestamp_queue, firing=False, cooldown=LASER_COOLDOWN):
+    def __init__(self, cooldown=LASER_COOLDOWN, recovery=RECOVERY):
         """
-        
+
         Parameters
         ----------
-        command_queue : multiprocessing.Queue
-            DeadDrop from which the laser will receive commands
-        timestamp_queue : multiprocessing.Queue
-            DeadDrop to which the laser will record its last fire time
-        firing : bool
-            Whether the laser is currently in 'fire at will' mode
         cooldown : float
-            Cooldown in seconds between laser shots
+            Time in seconds between laser shots
+        recovery : float
+            Time in seconds for laser to reactivate after being hit
         """
-        super(LaserProcess, self).__init__()
-        self.command_queue = command_queue
-        self.timestamp_queue = timestamp_queue
-        self.firing = firing
+        self._firing = Value('h', 0)
+        self._stood_down = Value('h', 0)
+        self._last_fired = Value('d', INITIAL_VALUE)
+        self._last_hit = Value('d', READY_SIGNAL)
         self.cooldown = cooldown
+        self.recovery = recovery
+
+    @property
+    def firing(self):
+        return bool(self._firing.value)
+
+    @firing.setter
+    def firing(self, new_value):
+        self._firing.value = bool(new_value)
+
+    @property
+    def stood_down(self):
+        return bool(self._stood_down.value)
+
+    @stood_down.setter
+    def stood_down(self, new_value):
+        self._stood_down.value = bool(new_value)
+
+    @property
+    def last_fired(self):
+        return self._last_fired.value
+
+    @last_fired.setter
+    def last_fired(self, new_value):
+        self._last_fired.value = new_value
+
+    @property
+    def last_hit(self):
+        return self._last_hit.value
+
+    @last_hit.setter
+    def last_hit(self, new_value):
+        self._last_hit.value = new_value
+
+    @property
+    def is_cooling(self):
+        return time.time() < self.last_fired + self.cooldown
+
+    @property
+    def is_disabled(self):
+        return time.time() < self.last_hit + self.recovery
+
+    def wait_for_change(self, attribute, initial=None, timeout=None):
+        started = time.time()
+        finish = started + timeout if timeout else float('inf')
+
+        if initial is None:
+            initial = getattr(self, attribute)
+
+        value = getattr(self, attribute)
+        while value == initial:
+            if time.time() > finish:
+                return False
+            time.sleep(POLL_INTERVAL)
+            value = getattr(self, attribute)
+
+        return True
+
+
+class WeaponsSystem(Process):
+    def __init__(self, weapons_console):
+        super(WeaponsSystem, self).__init__()
+        self.console = weapons_console
         self.ser = None
         self.logger = None
 
     def run(self):
         self.logger = logging.getLogger(type(self).__name__)
+        self._setup_serial()
 
-        self.setup_serial()
+        while not self.console.stood_down:
+            if self.console.firing and not self.console.is_cooling and not self._check_hit():
+                self._fire()
 
-        while True:
-            try:
-                command = self.command_queue.get(timeout=POLL_INTERVAL)
-                self.logger.debug('Received command: %s', command)
-                if command == Command.FIRE_ONCE:
-                    self.firing = False
-                    self._fire()
-                elif command == Command.FIRE_AT_WILL:
-                    self.firing = True
-                    self._fire()
-                elif command == Command.HOLD_FIRE:
-                    self.firing = False
-                elif command == Command.STAND_DOWN:
-                    return
-                else:
-                    ValueError('Unknown command {} received'.format(command))
-            except Empty:
-                if self.firing:
-                    self._fire()
-                else:
-                    time.sleep(POLL_INTERVAL)
+            time.sleep(POLL_INTERVAL)
 
-    def _fire(self):
-        """Fire the laser, record the timestamp, and block this process for the cooldown period"""
-        self.logger.debug('Firing!')
-        self.ser.write("FIRE\n")
-        # todo: get response signal from ser?
-        put_singular(self.timestamp_queue, time.time())
-        self.logger.debug('Laser cooling for {}s'.format(self.cooldown))
-        time.sleep(self.cooldown)
-
-    def setup_serial(self):
+    def _setup_serial(self):
         if self.ser is None:
             self.ser = PixySerial.get()
-        self.timestamp_queue.put(READY_SIGNAL)
+        self.console.last_fired = READY_SIGNAL
+
+    def _check_hit(self):
+        if self.console.is_disabled:
+            return True
+
+        if self.ser.in_waiting and self.ser.readline().rstrip() == 'HIT':
+            self.logger.warn("We've been hit!")
+            self.console.last_hit = time.time()
+            return True
+
+        return False
+
+    def _fire(self):
+        self.logger.debug('Firing!')
+        self.ser.write("FIRE\n")
+        self.logger.debug('Laser cooling for {}s'.format(self.console.cooldown))
