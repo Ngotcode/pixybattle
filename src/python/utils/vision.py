@@ -45,7 +45,7 @@ Scenes can be diffed (e.g. take a picture, fire a shot, take another picture - h
 >>> new_blocks, disappeared_blocks = scene1.diff(scene2)
 
 The biggest block (for example) can be found in a normal pythonic way
->>> largest_block = max(scene1, key=lambda block: block.area)
+>>> largest_block = max(scene1, key=lambda block: block.area * block.signature == 1 * weight)
 """
 
 from __future__ import division

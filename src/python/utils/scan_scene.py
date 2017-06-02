@@ -10,11 +10,12 @@ wait_time = 0
 step_size = 1
 
 
-def print_block_info(blocks, count):
-    if count > 0:
-        for index in range(0, count):
-            print '[BLOCK_TYPE=%d SIG=%d X=%3d Y=%3d WIDTH=%3d HEIGHT=%3d ANGLE=%3d]' % (blocks[index].type, blocks[index].signature, blocks[index].x, blocks[index].y, blocks[index].width, blocks[index].height, blocks[index].angle)
-
+def print_block_info(blocks):
+    # if count > 0:
+    #     for index in range(0, count):
+    #         print '[BLOCK_TYPE=%d SIG=%d X=%3d Y=%3d WIDTH=%3d HEIGHT=%3d ANGLE=%3d]' % (blocks[index].type, blocks[index].signature, blocks[index].x, blocks[index].y, blocks[index].width, blocks[index].height, blocks[index].angle)
+    for block in blocks:
+        print(str(object='block'))
 
 def search_max_blocks(signature, blocks, count):
     for n_count in range(count):
@@ -57,9 +58,8 @@ def scan_scene(blocks, do_pan):
             blocks = PixyBlock.from_pixy()
             count = len(blocks)
             if count > 0:
-                # print_block_info(blocks, count)
+                print_block_info(blocks)
                 block = search_max_blocks(target_signature, blocks, count)
-                # conflict point
                 if block is None:
                     continue
                 if area_list[target_signature - 1] < area(block):
