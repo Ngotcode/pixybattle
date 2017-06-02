@@ -7,7 +7,7 @@ import csv
 
 import pytest
 
-from utils.shooting import get_with_default, put_singular, LaserCommander
+from utils.shooting import get_with_default, put_singular, WeaponsOfficer
 
 logger = logging.getLogger('tests.shooting_test')
 
@@ -159,10 +159,10 @@ class DummySerial(object):
 
 @pytest.fixture
 def cmdr_dummy(request):
-    commander = LaserCommander()
+    commander = WeaponsOfficer()
     dummy_serial = DummySerial(request.function.__name__ + '.txt')
-    commander._laser.cooldown = SHORT_COOLDOWN
-    commander._laser.ser = dummy_serial
+    commander.weapons_system.cooldown = SHORT_COOLDOWN
+    commander.weapons_system.ser = dummy_serial
     return commander, dummy_serial
 
 
