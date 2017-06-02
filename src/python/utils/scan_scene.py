@@ -11,9 +11,6 @@ step_size = 1
 
 
 def print_block_info(blocks):
-    # if count > 0:
-    #     for index in range(0, count):
-    #         print '[BLOCK_TYPE=%d SIG=%d X=%3d Y=%3d WIDTH=%3d HEIGHT=%3d ANGLE=%3d]' % (blocks[index].type, blocks[index].signature, blocks[index].x, blocks[index].y, blocks[index].width, blocks[index].height, blocks[index].angle)
     for block in blocks:
         print(str(block))
 
@@ -53,7 +50,7 @@ def find_max_block_in_scene(blocks, signatures, weights):
     return best_block, max_area
 
 
-def scan_scene(blocks, do_pan):
+def scan_scene(do_pan):
     """
     loop when in searching state. Detect objects in the scene, return one of the following states:
     1 = Object detected: return a list of blocks
@@ -73,14 +70,8 @@ def scan_scene(blocks, do_pan):
             pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_view)
             time.sleep(wait_time)
             blocks = PixyBlock.from_pixy()
-        # count = len(blocks)
-        # if count > 0:
-            #print_block_info(blocks)
+            # print_block_info(blocks)
             block, max_area_pan = find_max_block_in_scene(blocks, SIGNATURE_LIST, TARGET_WEIGHT_MATRIX)
-            # if area_list[target_signature - 1] < area(block):
-            #     block_with_signature[target_signature - 1] = block
-            #     area_list[target_signature - 1] = area(block)
-            #     tar_pan_view = pan_view
             if tar_area < max_area_pan:
                 tar_area = max_area_pan
                 tar_block = block

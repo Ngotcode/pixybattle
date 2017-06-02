@@ -243,7 +243,8 @@ def loop(robot_state):
             count = 1
             robot_state.state = "chase"
     if robot_state.state == "chase":
-        block = scan_scene(robot_state.blocks, do_pan)
+        # block = scan_scene(robot_state.blocks, do_pan)
+        block = scan_scene(do_pan)
         if block is None:
             count = 0
         else:
