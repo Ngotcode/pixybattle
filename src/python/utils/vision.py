@@ -6,10 +6,9 @@ Examples
 
 >>> from utils.vision import PixyBlock, Scene
 
->>> count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, block_buffer)  # get camera output as usual
->>> blocks = PixyBlock.from_ctypes_array(block_buffer, count)
+>>> blocks = PixyBlock.from_pixy()
 
-`blocks` is now a python list of `PixyBlock` objects - the ctypes block_buffer can be overwritten without changing it
+`blocks` is now a python list of `PixyBlock` objects, taken directly from the camera.
 
 >>> block, block2 = blocks[:2]
 
@@ -29,14 +28,15 @@ and spatial functions
 >>> merged_block = PixyBlock.merge_blocks(block, block2)  # only works if they have the same signature
 Note: type and angle are ignored for now because I don't know what they do
 
-near-equality can be found (current implementation uses a threshold intersection proportion controlled by 
+near-equality can be found (current implementation uses a threshold intersection proportion controlled by
 `SIMILARITY_THRESHOLD`, but this can change)
 >>> is_probably_same_block = block.nearly_equals(block2)  # boolean
 
-# Scene is a wrapper for a set of PixyBlocks
->>> scene1 = Scene.from_ctypes_array(block_buffer, count)  # or Scene(blocks, PixyBlock) if they're already PixyBlocks
->>> count2 = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, block_buffer)  # sample again
->>> scene2 = Scene.from_ctypes_array(block_buffer, count2)
+# Scene is a wrapper for a set of PixyBlocks. There are three ways to instantiate it (but you should use the first)
+>>> scene1 = Scene.from_pixy()  # get PixyBlocks directly from camera
+>>> scene2 = Scene(pixyblock_list, PixyBlock)  # if you already have a list of PixyBlock objects
+>>> count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, block_buffer)
+>>> scene3 = Scene.from_ctypes_array(block_buffer, count)  # the long way round
 
 # scenes can be merged (e.g. take 2 pictures of the same thing, merge any objects which are nearly equal)
 >>> merged_scene = scene1.merge_with(scene2)
@@ -50,10 +50,19 @@ import itertools
 from random import Random
 from copy import copy
 from math import hypot
+import logging
 
 import numpy as np
 import networkx as nx
 
+from constants import BLOCK_BUFFER_SIZE
+
+logger = logging.getLogger(__name__)
+
+try:
+    from pixy import pixy
+except ImportError:
+    logger.error('Cannot import pixy. Continuing in case of unit test.')
 
 SIMILARITY_THRESHOLD = 0.9
 
@@ -132,7 +141,7 @@ class GenericBlock(object):
     def intersection_area(self, other, check_sig=False):
         """
         Find the area of the intersection between this block and another block.
-        
+
         Parameters
         ----------
         other : GenericBlock
@@ -150,9 +159,9 @@ class GenericBlock(object):
 
     def nearly_equals(self, other, threshold=SIMILARITY_THRESHOLD):
         """
-        Return True if the intersection area of the two blocks is greater than the threshold proportion of the larger 
+        Return True if the intersection area of the two blocks is greater than the threshold proportion of the larger
         block's area.
-        
+
         Parameters
         ----------
         other
@@ -168,7 +177,7 @@ class GenericBlock(object):
     def intersection_ppn(self, other, check_sig=False):
         """
         Find what proportion of the larger block's area intersects with the smaller block.
-         
+
         Parameters
         ----------
         other : GenericBlock
@@ -188,7 +197,7 @@ class GenericBlock(object):
     def merge_blocks(cls, *blocks):
         """
         Given any number of blocks, return a block which has the mean size and position of all of them.
-        
+
         N.B. only works if they all have the same signature
 
         Parameters
@@ -219,6 +228,8 @@ class PixyBlock(GenericBlock):
 
     KEYS = GenericBlock.KEYS + ['type', 'angle']
 
+    block_buffer = pixy.BlockArray(BLOCK_BUFFER_SIZE)
+
     def __init__(self, signature, x, y, width, height, type_=0, angle=0):
         super(PixyBlock, self).__init__(
             signature, x, y, width, height
@@ -230,7 +241,7 @@ class PixyBlock(GenericBlock):
     def from_ctypes(cls, ctypes_block):
         """
         Instantiate PixyBlock from a ctypes-backed Blocks object
-        
+
         Parameters
         ----------
         ctypes_block
@@ -247,10 +258,22 @@ class PixyBlock(GenericBlock):
         )
 
     @classmethod
+    def from_pixy(cls):
+        """
+        Get a list of PixyBlock objects directly from the camera.
+
+        Returns
+        -------
+        list of PixyBlock
+        """
+        count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, PixyBlock.block_buffer)
+        return PixyBlock.from_ctypes_array(PixyBlock.block_buffer, count)
+
+    @classmethod
     def from_ctypes_array(cls, ctypes_blocks, count):
         """
-        Instantiate a list of PixyBlock objects from a ctypes-backed BlocksArray
-        
+        Get a list of PixyBlock objects from a ctypes-backed BlocksArray
+
         Parameters
         ----------
         ctypes_blocks
@@ -268,10 +291,10 @@ class PixyBlock(GenericBlock):
 def nearly_equal_pairs(blocks_1, blocks_2=None, threshold=SIMILARITY_THRESHOLD):
     """
     Find pairs of blocks which are likely to be the same object.
-    
-    If blocks_2 is None (default), all pairs within blocks_1 will be tested for near-equality. Otherwise, 
+
+    If blocks_2 is None (default), all pairs within blocks_1 will be tested for near-equality. Otherwise,
     pairs of objects from blocks_1, and blocks_2 will be tested.
-    
+
     Parameters
     ----------
     blocks_1
@@ -299,7 +322,7 @@ def nearly_equal_pairs(blocks_1, blocks_2=None, threshold=SIMILARITY_THRESHOLD):
 def merge_similar_blocks(blocks_1, blocks_2=None, block_constructor=GenericBlock):
     """
     Given either one or two sequences of blocks, find pairs of near-equal blocks.
-    
+
     Parameters
     ----------
     blocks_1
@@ -332,7 +355,7 @@ class Scene(object):
 
     def __init__(self, blocks, block_constructor=GenericBlock):
         """
-        
+
         Parameters
         ----------
         blocks : sequence
@@ -344,10 +367,22 @@ class Scene(object):
         self.block_constructor = block_constructor
 
     @classmethod
+    def from_pixy(cls):
+        """
+        Instantiate scene directly from camera.
+
+        Returns
+        -------
+        Scene
+        """
+        blocks = PixyBlock.from_pixy()
+        return cls(blocks, PixyBlock)
+
+    @classmethod
     def from_ctypes_array(cls, pixy_blocks, count):
         """
-        Instantiate scene directly from pixy camera output
-        
+        Instantiate scene directly from output of `pixy.pixy_get_blocks`
+
         Parameters
         ----------
         pixy_blocks : BlocksArray
@@ -363,7 +398,7 @@ class Scene(object):
     def merge_with(self, other):
         """
         Union two scenes, merging any similar blocks.
-        
+
         Parameters
         ----------
         other : Scene
@@ -376,10 +411,10 @@ class Scene(object):
 
     def diff(self, other):
         """
-        Diff two scenes, returning a pair of sets. The first element contains blocks which exist in the other scene 
-        without a likely counterpart in this scene; the second element contains blocks which exist in this 
+        Diff two scenes, returning a pair of sets. The first element contains blocks which exist in the other scene
+        without a likely counterpart in this scene; the second element contains blocks which exist in this
         scene without a likely counterpart in the other scene.
-        
+
         Parameters
         ----------
         other : Scene
@@ -440,10 +475,10 @@ def plot_near_equality_power():
 
     Plot the proportion of blocks correctly identified as nearly equal, for varying amounts of noise (sigma).
 
-    We want the blue line to be passing above and to the right of the red/green cross (this is represented in the 
+    We want the blue line to be passing above and to the right of the red/green cross (this is represented in the
     tests).
 
-    However, if we go too far in that direction, we will pick up a lot of false positives (there is currently no test 
+    However, if we go too far in that direction, we will pick up a lot of false positives (there is currently no test
     for this).
     """
     sigmas = np.linspace(0, TARGET_SIGMA * 2, 101, True)
