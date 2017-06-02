@@ -94,5 +94,5 @@ def scan_scene(blocks, do_pan):
         blocks = PixyBlock.from_pixy()
         tar_block, _ = find_max_block_in_scene(blocks, SIGNATURE_LIST, TARGET_WEIGHT_MATRIX)
 
-    print_block_info(tar_block)
+    print_block_info([tar_block])
     return tar_block
