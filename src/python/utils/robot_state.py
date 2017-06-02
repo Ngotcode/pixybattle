@@ -26,3 +26,7 @@ class RobotState(object):
         self.previous_turn_error = 0
         self.previous_time = current_time
         self.deadband = 0.05 * total_drive
+<<<<<<< HEAD
+=======
+        self.state = "search"
+>>>>>>> master

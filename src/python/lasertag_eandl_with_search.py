@@ -10,6 +10,10 @@ from datetime import datetime
 from pixy import pixy
 from pololu_drv8835_rpi import motors
 from utils.robot_state import RobotState
+<<<<<<< HEAD:src/python/lasertag_eandl_with_search.py
+=======
+import search
+>>>>>>> master:src/python/lasertag_eandl_with_search.py
 
 
 serial_device = '/dev/ttyACM0'
@@ -233,6 +237,7 @@ def loop(robot_state):
     while not pixy.pixy_blocks_are_new() and run_flag:
         pass
     # count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, robot_state.blocks)
+<<<<<<< HEAD:src/python/lasertag_eandl_with_search.py
     block = scan_scene(robot_state.blocks, do_pan)
     if do_pan:
         do_pan = 0
@@ -316,6 +321,46 @@ def loop(robot_state):
     bias_computation(robot_state, dt, pan_loop)
     robot_state.previous_time = robot_state.current_time
     drive(robot_state)
+=======
+    # block = scan_scene(robot_state.blocks, do_pan)
+    count = 0
+    if robot_state.state == "search":
+        do_pan = 1
+        block = search.simple_search(robot_state, motors, do_pan)
+        if block is not None:
+            do_pan = 0
+            count = 1
+            robot_state.state = "chase"
+    if robot_state.state == "chase":
+        block = scan_scene(robot_state.blocks, do_pan)
+        if block == None:
+            count = 0
+        else:
+            count = 1
+
+        # If negative blocks, something went wrong
+
+        # if more than one block
+        # Check which the largest block's signature and either do target chasing or
+        # line following
+        if count > 0:
+            pan_error = drive_toward_block(robot_state, block)
+            pan_loop.update(pan_error)
+
+        # Update pixy's pan position
+        pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_loop.m_pos)
+
+        # if Pixy sees nothing recognizable, don't move.
+        time_difference = robot_state.current_time - robot_state.previous_time
+        if time_difference.total_seconds() >= timeout:
+            throttle = 0.0
+            diff_drive = 1
+
+        dt = (robot_state.current_time - robot_state.previous_time).total_seconds()
+        bias_computation(robot_state, dt, pan_loop)
+        robot_state.previous_time = robot_state.current_time
+        l_drive, r_drive = drive(robot_state)
+>>>>>>> master:src/python/lasertag_eandl_with_search.py
     return run_flag
 
 
@@ -351,6 +396,7 @@ def drive(robot_state):
 
     # Actually Set the motors
     motors.setSpeeds(int(l_drive), int(r_drive))
+    return int(l_drive), int(r_drive)
 
 if __name__ == '__main__':
     try:
