@@ -12,7 +12,7 @@ def simple_search(robot_state, motors, do_pan):
     the robot is properly moving towards the chosen directions (ie no PD loop
     corrections).
     """
-    block = scan_scene(robot_state.blocks, do_pan)
+    block = scan_scene(do_pan)
     if block is not None:
         print "Target found!"
         return block
@@ -24,7 +24,7 @@ def simple_search(robot_state, motors, do_pan):
     motors.setSpeeds(0, 0)
     # time.sleep(10)
 
-    block = scan_scene(robot_state.blocks, do_pan)
+    block = scan_scene(do_pan)
     if block is not None:
         print "Target found!"
         search = False
