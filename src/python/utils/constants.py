@@ -42,6 +42,7 @@ MIN_MOTOR_SPEED = -480
 
 # LASER CONSTANTS
 LASER_COOLDOWN = 1  # seconds
+RECOVERY = 5  # time it takes for laser to reactivate after being hit, in seconds
 
 
 # todo: may not be necessary
@@ -74,9 +75,9 @@ class PixySerial(object):
 
 class Behaviour(Enum):
     """
-    Definition of robot's behavioural states (here for consistency). Add states where required, but always refer to 
+    Definition of robot's behavioural states (here for consistency). Add states where required, but always refer to
     them through this static class for consistency.
-    
+
     Examples
     --------
     Fictitious robot API for demonstrative purposes
