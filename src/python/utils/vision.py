@@ -286,9 +286,11 @@ class PixyBlock(GenericBlock):
         -------
         list of PixyBlock
         """
+        if count < 0:
+            logger.critical('Block buffer has count < 0, probably a hardware error')
+            pixy.pixy_error(count)
+            sys.exit(1)
         return [cls.from_ctypes(ctypes_blocks[i]) for i in range(count)]
-
-    # todo: override GenericBlock.merge_blocks to account for `type` and `angle`
 
 
 def nearly_equal_pairs(blocks_1, blocks_2=None, threshold=SIMILARITY_THRESHOLD):

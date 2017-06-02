@@ -3,6 +3,7 @@ from pixy import pixy
 import sys
 from utils.constants import *
 import time
+import utils.vision import PixyBlock, Scene
 
 ratio_thres = 500
 wait_time = 0
@@ -53,22 +54,18 @@ def scan_scene(blocks, do_pan):
             # print(pan_view)
             pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_view)
             time.sleep(wait_time)
-            count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, blocks)
-            if count < 0:
-                print 'Error: pixy_get_blocks() [%d] ' % count
-                pixy.pixy_error(count)
-                sys.exit(1)
-            else:
-                if count > 0:
-                    # print_block_info(blocks, count)
-                    block = search_max_blocks(target_signature, blocks, count)
-                    # conflict point
-                    if block is None:
-                        continue
-                    if area_list[target_signature - 1] < area(block):
-                        block_with_signature[target_signature - 1] = block
-                        area_list[target_signature - 1] = area(block)
-                        tar_pan_view = pan_view
+            blocks = PixyBlock.from_pixy()
+            count = len(blocks)
+            if count > 0:
+                # print_block_info(blocks, count)
+                block = search_max_blocks(target_signature, blocks, count)
+                # conflict point
+                if block is None:
+                    continue
+                if area_list[target_signature - 1] < area(block):
+                    block_with_signature[target_signature - 1] = block
+                    area_list[target_signature - 1] = area(block)
+                    tar_pan_view = pan_view
         # print(tar_pan_view)
         if tar_pan_view < 0:
             tar_pan_view = PIXY_RCS_CENTER_POS
