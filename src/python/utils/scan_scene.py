@@ -3,7 +3,7 @@ from pixy import pixy
 import sys
 from utils.constants import *
 import time
-import utils.vision import PixyBlock, Scene
+from utils.vision import PixyBlock, Scene
 
 ratio_thres = 500
 wait_time = 0
