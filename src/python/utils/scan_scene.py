@@ -1,4 +1,4 @@
-from __future__ import division
+# from __future__ import division
 from pixy import pixy
 import sys
 from utils.constants import *
@@ -25,7 +25,7 @@ def search_max_blocks(signature, blocks, count):
 # check if the block is valid in search area
 # later decision
 def valid_block(block):
-    return block.height/block.width <= ratio_thres
+    return block.height <= (ratio_thres * block.width)
 
 
 def area(block):
