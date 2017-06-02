@@ -32,17 +32,20 @@ near-equality can be found (current implementation uses a threshold intersection
 `SIMILARITY_THRESHOLD`, but this can change)
 >>> is_probably_same_block = block.nearly_equals(block2)  # boolean
 
-# Scene is a wrapper for a set of PixyBlocks. There are three ways to instantiate it (but you should use the first)
+Scene is a wrapper for a set of PixyBlocks. There are three ways to instantiate it (but you should use the first)
 >>> scene1 = Scene.from_pixy()  # get PixyBlocks directly from camera
 >>> scene2 = Scene(pixyblock_list, PixyBlock)  # if you already have a list of PixyBlock objects
 >>> count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, block_buffer)
 >>> scene3 = Scene.from_ctypes_array(block_buffer, count)  # the long way round
 
-# scenes can be merged (e.g. take 2 pictures of the same thing, merge any objects which are nearly equal)
+Scenes can be merged (e.g. take 2 pictures of the same thing, merge any objects which are nearly equal)
 >>> merged_scene = scene1.merge_with(scene2)
 
-# scenes can be diffed (e.g. take a picture, fire a shot, take another picture - has anything changed?)
+Scenes can be diffed (e.g. take a picture, fire a shot, take another picture - has anything changed?)
 >>> new_blocks, disappeared_blocks = scene1.diff(scene2)
+
+The biggest block (for example) can be found in a normal pythonic way
+>>> largest_block = max(scene1, key=lambda block: block.area)
 """
 
 from __future__ import division
@@ -365,6 +368,9 @@ class Scene(object):
         """
         self.blocks = set(blocks)
         self.block_constructor = block_constructor
+
+    def __iter__(self):
+        return iter(self.blocks)
 
     @classmethod
     def from_pixy(cls):
