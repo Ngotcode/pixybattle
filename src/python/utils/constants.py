@@ -29,10 +29,6 @@ PAN_DERIVATIVE_GAIN = 300
 TILT_PROPORTIONAL_GAIN = 500
 TILT_DERIVATIVE_GAIN = 400
 
-<<<<<<< HEAD
-MAX_MOTOR_SPEED = 300  # 480
-MIN_MOTOR_SPEED = -480
-=======
 # MOTOR CONSTANTS
 
 MAX_MOTOR_SPEED = 300  # 480
@@ -42,9 +38,9 @@ MIN_MOTOR_SPEED = -480
 
 class Behaviour(Enum):
     """
-    Definition of robot's behavioural states (here for consistency). Add states where required, but always refer to 
+    Definition of robot's behavioural states (here for consistency). Add states where required, but always refer to
     them through this static class for consistency.
-    
+
     Examples
     --------
     Fictitious robot API for demonstrative purposes
@@ -52,10 +48,10 @@ class Behaviour(Enum):
     >>> if example_bot.behaviour == Behaviour.SEARCH:
     >>> ....example_bot.do_things()
     """
-    
+
     SEARCH = 'search'
     """Looking for target while moving"""
-    
+
     CHASE = 'chase'
     """Target acquired, go towards it"""
 
@@ -64,5 +60,3 @@ class Behaviour(Enum):
 
     KILLED = 'killed'
     """Recently shot: stationary for short period"""
-
->>>>>>> master

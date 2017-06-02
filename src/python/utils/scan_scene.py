@@ -4,11 +4,7 @@ import sys
 from utils.constants import *
 import time
 
-<<<<<<< HEAD
 ratio_thres = 500
-=======
-ratio_thres = 10
->>>>>>> master
 wait_time = 0
 step_size = 1
 
@@ -66,11 +62,9 @@ def scan_scene(blocks, do_pan):
                 if count > 0:
                     # print_block_info(blocks, count)
                     block = search_max_blocks(target_signature, blocks, count)
-<<<<<<< HEAD
-=======
+                    # conflict point
                     if block is None:
                         continue
->>>>>>> master
                     if area_list[target_signature - 1] < area(block):
                         block_with_signature[target_signature - 1] = block
                         area_list[target_signature - 1] = area(block)

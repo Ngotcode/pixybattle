@@ -10,11 +10,7 @@ from datetime import datetime
 from pixy import pixy
 from pololu_drv8835_rpi import motors
 from utils.robot_state import RobotState
-<<<<<<< HEAD:src/python/lasertag_eandl_with_search.py
-=======
 import search
->>>>>>> master:src/python/lasertag_eandl_with_search.py
-
 
 serial_device = '/dev/ttyACM0'
 baudRate = 9600
@@ -180,7 +176,7 @@ def setup():
 
 def bias_computation(robot_state, dt, pan_loop):
     # should be still int32_t
-    signed_turn_error = PIXY_RCS_CENTER_POS - pan_loop.m_pos 
+    signed_turn_error = PIXY_RCS_CENTER_POS - pan_loop.m_pos
     turn_error = np.abs(signed_turn_error)
     if dt == 0:
         dt += 1e-5
@@ -237,91 +233,6 @@ def loop(robot_state):
     while not pixy.pixy_blocks_are_new() and run_flag:
         pass
     # count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, robot_state.blocks)
-<<<<<<< HEAD:src/python/lasertag_eandl_with_search.py
-    block = scan_scene(robot_state.blocks, do_pan)
-    if do_pan:
-        do_pan = 0
-    if block == None:
-        count = 0
-    else:
-        count = 1
-    # If negative blocks, something went wrong
-
-    # if count < 0:
-    #     print 'Error: pixy_get_blocks() [%d] ' % count
-    #     pixy.pixy_error(count)
-    #     sys.exit(1)
-    
-    # if more than one block
-    # Check which the largest block's signature and either do target chasing or
-    # line following
-
-    if count > 0:
-
-        # time_difference = robot_state.current_time - robot_state.last_fire
-        # if time_difference.total_seconds() >= 1:
-        #    print "Fire!"
-        #    ser.write("FIRE\n")
-        #    robot_state.last_fire = robot_state.current_time
-
-        # robot_state.previous_time = robot_state.current_time
-        # if the largest block is the object to pursue, then prioritize this
-        # behavior
-        # if block.signature == 1:
-        pan_error = drive_toward_block(robot_state, block)
-        # pan_error = drive_toward_block(robot_state, robot_state.blocks[0])
-            # pan_error = PIXY_X_CENTER - robot_state.blocks[0].x
-            # object_dist = ref_size1 / \
-            #     (2 * math.tan(math.radians(robot_state.blocks[0].width * pix2ang_factor)))
-            # robot_state.throttle = 0.5
-            # amount of steering depends on how much deviation is there
-            # robot_state.diff_drive = robot_state.diff_gain * abs(float(pan_error)) / PIXY_X_CENTER
-            # dist_error = object_dist - robot_state.target_dist
-            # this is in float format with sign indicating advancing or
-            # retreating
-            # robot_state.advance = robot_state.drive_gain * float(dist_error) / robot_state.ref_dist
-        # if Pixy sees a guideline, perform line following algorithm
-        # elif robot_state.blocks[0].signature == 2:
-            # pan_error = PIXY_X_CENTER - robot_state.blocks[0].x
-            # robot_state.throttle = 1.0
-            # robot_state.diff_drive = 0.6
-            # # amount of steering depends on how much deviation is there
-            # diff_drive = diff_gain * abs(float(turn_error)) / PIXY_X_CENTER
-            # use full available throttle for charging forward
-            # robot_state.advance = 1
-        # if none of the blocks make sense, just pause
-        # else:
-            # pan_error = 0
-            # robot_state.throttle = 0.0
-            # robot_state.diff_drive = 1
-        pan_loop.update(pan_error)
-
-    # Update pixy's pan position
-    pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_loop.m_pos)
-
-    # if Pixy sees nothing recognizable, don't move.
-    time_difference = robot_state.current_time - robot_state.previous_time
-    if time_difference.total_seconds() >= timeout:
-        throttle = 0.0
-        diff_drive = 1
-
-    # this is turning to left
-    # if pan_loop.m_pos > PIXY_RCS_CENTER_POS:
-    #     # should be still int32_t
-    #     turn_error = pan_loop.m_pos - PIXY_RCS_CENTER_POS
-    #     # <0 is turning left; currently only p-control is implemented
-    #     bias = - float(turn_error) / float(PIXY_RCS_CENTER_POS) * h_pgain
-    # # this is turning to right
-    # elif pan_loop.m_pos < PIXY_RCS_CENTER_POS:
-    #     # should be still int32_t
-    #     turn_error = PIXY_RCS_CENTER_POS - pan_loop.m_pos
-    #     # >0 is turning left; currently only p-control is implemented
-    #     bias = float(turn_error) / float(PIXY_RCS_CENTER_POS) * h_pgain
-    dt = (robot_state.current_time - robot_state.previous_time).total_seconds()
-    bias_computation(robot_state, dt, pan_loop)
-    robot_state.previous_time = robot_state.current_time
-    drive(robot_state)
-=======
     # block = scan_scene(robot_state.blocks, do_pan)
     count = 0
     if robot_state.state == "search":
@@ -360,7 +271,6 @@ def loop(robot_state):
         bias_computation(robot_state, dt, pan_loop)
         robot_state.previous_time = robot_state.current_time
         l_drive, r_drive = drive(robot_state)
->>>>>>> master:src/python/lasertag_eandl_with_search.py
     return run_flag
 
 
