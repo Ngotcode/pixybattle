@@ -1,9 +1,8 @@
-# from __future__ import division
 from pixy import pixy
 import sys
 from utils.constants import *
 import time
-from utils.vision import PixyBlock, Scene
+from utils.vision import PixyBlock
 
 ratio_thres = 500
 wait_time = 0
@@ -66,24 +65,19 @@ def scan_scene(do_pan):
 
     if do_pan:
         for pan_view in range(0, 1000, step_size):
-            # print(pan_view)
             pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_view)
             time.sleep(wait_time)
             blocks = PixyBlock.from_pixy()
-            # print_block_info(blocks)
             block, max_area_pan = find_max_block_in_scene(blocks, SIGNATURE_LIST, TARGET_WEIGHT_MATRIX)
             if tar_area < max_area_pan:
                 tar_area = max_area_pan
                 tar_block = block
                 tar_pan_view = pan_view
-
-        print(tar_pan_view)
         if tar_pan_view < 0:
             tar_pan_view = PIXY_RCS_CENTER_POS
         pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, tar_pan_view)
     else:
         blocks = PixyBlock.from_pixy()
         tar_block, _ = find_max_block_in_scene(blocks, SIGNATURE_LIST, TARGET_WEIGHT_MATRIX)
-
-    print_block_info([tar_block])
+    # print_block_info([tar_block])
     return tar_block
