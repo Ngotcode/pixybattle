@@ -64,7 +64,7 @@ def scan_scene(do_pan):
     tar_block = None
 
 
-    if do_pan:
+    if do_pan == 'search':
         for pan_view in range(0, 1000, step_size):
             # print(pan_view)
             pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_view)
@@ -77,13 +77,20 @@ def scan_scene(do_pan):
                 tar_block = block
                 tar_pan_view = pan_view
 
-        print(tar_pan_view)
+        # print(tar_pan_view)
         if tar_pan_view < 0:
             tar_pan_view = PIXY_RCS_CENTER_POS
         pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, tar_pan_view)
-    else:
+    elif do_pan == "chase":
         blocks = PixyBlock.from_pixy()
         tar_block, _ = find_max_block_in_scene(blocks, SIGNATURE_LIST, TARGET_WEIGHT_MATRIX)
+    elif do_pan == "roam":
+        blocks = PixyBlock.from_pixy()
+        if len(blocks) > 0:
+            tar_block = blocks[0]
+        else:
+            tar_block = None
+            
 
-    print_block_info([tar_block])
+    # print_block_info([tar_block])
     return tar_block

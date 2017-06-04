@@ -210,7 +210,7 @@ def loop(robot_state):
     # global blocks, throttle, diff_drive, diff_gain, bias, advance, turn_error,
     # global current_time, last_time, object_dist, dist_error, pan_error_prev,
     # global dist_error_prev, pan_loop, killed, last_fire
-    global do_pan
+    # global do_pan
 
     if ser.in_waiting:
         print("Reading line from serial..")
@@ -225,8 +225,8 @@ def loop(robot_state):
 
     if robot_state.killed:
         print "I'm hit!"
-        motors.setSpeeds(0, 0)
-        time.sleep(5)
+        # motors.setSpeeds(0, 0)
+        # time.sleep(5)
 
     robot_state.current_time = datetime.now()
     # If no new blocks, don't do anything
@@ -236,17 +236,25 @@ def loop(robot_state):
     # block = scan_scene(robot_state.blocks, do_pan)
     count = 0
     if robot_state.state == "search":
-        do_pan = 1
-        block = search.simple_search(robot_state, motors, do_pan)
+        block = search.simple_search(robot_state, motors)
         if block is not None:
-            do_pan = 0
+            # do_pan = 0
             count = 1
             robot_state.state = "chase"
+            print "from search to chase"
+            print block
+        else:
+            robot_state.state = "roam"
+            print block
+            print "from search to roam"
     if robot_state.state == "chase":
         # block = scan_scene(robot_state.blocks, do_pan)
-        block = scan_scene(do_pan)
+        block = scan_scene(robot_state.state)
         if block is None:
             count = 0
+            robot_state.state = "roam"
+            print "from chase to roam"
+            return run_flag
         else:
             count = 1
 
@@ -272,6 +280,35 @@ def loop(robot_state):
         bias_computation(robot_state, dt, pan_loop)
         robot_state.previous_time = robot_state.current_time
         l_drive, r_drive = drive(robot_state)
+    elif robot_state.state == "roam":
+        # First, see if there is a shootable target
+        block = scan_scene("chase")
+        if block is not None:
+            robot_state.state = "chase"
+            print 'roam to chase'
+            # return run_flag
+        else:
+            # else, we are still in roam mode
+            block = scan_scene("roam")
+            # if block is too big
+            # then switch "search"
+            robot_state.throttle = 0.5
+            robot_state.diff_drive = 0 #abs(float(pan_error) / 300+.4)
+        
+            if not block is None:
+                print 'hello', block.width
+                object_dist = ref_size1 / (2 * math.tan(math.radians(block.width * pix2ang_factor)))
+                dist_error = object_dist - target_dist
+                robot_state.advance = logit(dist_error, .025, 400)
+                if robot_state.advance < .05:
+                    robot_state.state = "search"
+                    print 'roam to search'
+                    # return run_flag
+                    robot_state.advance = 0
+                l_drive, r_drive = drive(robot_state)
+            else:
+                robot_state.advance = .75
+                l_drive, r_drive = drive(robot_state)
     return run_flag
 
 

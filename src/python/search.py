@@ -4,7 +4,7 @@ import time
 from utils.scan_scene import scan_scene
 
 
-def simple_search(robot_state, motors, do_pan):
+def simple_search(robot_state, motors):
     """Simple search.
 
     This search will pick a random direction and move towards that direction
@@ -12,29 +12,31 @@ def simple_search(robot_state, motors, do_pan):
     the robot is properly moving towards the chosen directions (ie no PD loop
     corrections).
     """
-    block = scan_scene(do_pan)
+    block = scan_scene(robot_state.state)
     if block is not None:
-        print "Target found!"
+        print "\tTarget found!"
         return block
     # First, rotate the robot
-    rand_sec = np.random.random([1])[0] * 1
-    print "Rotating for %f seconds." % rand_sec
+    # rand_sec = np.random.random([1])[0] * 1
+    rand_sec = .5
+    print "\tRotating for %f seconds." % rand_sec
     motors.setSpeeds(int(-100), int(100))
     time.sleep(rand_sec)
     motors.setSpeeds(0, 0)
     # time.sleep(10)
 
-    block = scan_scene(do_pan)
+    block = scan_scene(robot_state.state)
     if block is not None:
-        print "Target found!"
+        print "\tTarget found!"
         search = False
-    else:
-        print "Target not found!"
-        rand_sec = np.random.random([1])[0] * 1
-        print "Forward for %f seconds." % rand_sec
-        motors.setSpeeds(int(200), int(200))
-        time.sleep(rand_sec)
-        motors.setSpeeds(0, 0)
+    # else:
+    #     print "Target not found!"
+    #     # rand_sec = np.random.random([1])[0] * 1
+    #     rand_sec = 3
+    #     print "Forward for %f seconds." % rand_sec
+    #     motors.setSpeeds(int(200), int(200))
+    #     time.sleep(rand_sec)
+    #     motors.setSpeeds(0, 0)
 
     # Is the only way to get to this point if block is not None?
     return block
