@@ -45,12 +45,12 @@ logging.getLogger(__name__).info('Created log file at %s', LOG_PATH)
 
 def set_log_level(level=logging.DEBUG):
     """
-    Set the severity threshold for logs to be printed out to the command line. This does not affect logs printed to 
-    the timestamped file. 
-    
-    N.B. THIS SHOULD ONLY BE CALLED IN AN ENTRY POINT, i.e. in an `if __name__ == '__main__':` block. Otherwise you 
+    Set the severity threshold for logs to be printed out to the command line. This does not affect logs printed to
+    the timestamped file.
+
+    N.B. THIS SHOULD ONLY BE CALLED IN AN ENTRY POINT, i.e. in an `if __name__ == '__main__':` block. Otherwise you
     will interfere with logging which should be controlled by other entry points.
-    
+
     Parameters
     ----------
     level : int
