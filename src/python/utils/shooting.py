@@ -5,16 +5,16 @@ Examples
 --------
 
 Import and instantiate our laser commander
->>> from utils.shooting import WeaponsOfficer
->>> lt_worf = WeaponsOfficer()
+>>> from utils.shooting import LaserController
+>>> controller = LaserController()
 
 Start the laser controller process
->>> lt_worf.start()
+>>> controller.start()
 
 Instruct the laser commander
->>> lt_worf.fire_once()
->>> lt_worf.fire_at_will()
->>> lt_worf.hold_fire()
+>>> controller.fire_once()
+>>> controller.fire_at_will()
+>>> controller.hold_fire()
 
 `fire_once` blocks execution until the laser reports that it has fired. A timeout can be passed in to prevent it from
 waiting indefinitely.
@@ -23,27 +23,30 @@ By default, `fire_at_will` does not block. To make it block until the laser has 
 pass `True` as the first argument - again, a timeout can be passed as a second argument.
 
 To fire multiple times in a row, blocking between each shot, use
->>> lt_worf.fire_multiple(n)  # fire n shots
+>>> controller.fire_multiple(n)  # fire n shots
 
 Find out when the laser last fired (updated automatically)
->>> lt_worf.last_fired
+>>> controller.last_fired
 
 You must remember to stand down the commander!
->>> lt_worf.stand_down()
+>>> controller.stand_down()
 
 You can (/should) use the Laser Commander in a `with` statement so that you don't have to remember anything, and errors
 are handled better:
->>> with WeaponsOfficer() as lt_worf:
->>>     lt_worf.fire_at_will()
+>>> with LaserController() as controller:
+>>>     controller.fire_at_will()
 The Commander will be stood down automatically upon leaving the `with` statement (including error cases)
 """
 
-from multiprocessing import Process, Value
+from multiprocessing import Process, Value, Array
 import logging
 import time
+import datetime
 
 from utils.constants import LASER_COOLDOWN, RECOVERY, PixySerial
 
+# year, month, day, hour, second, microsecond
+EPOCH_TUPLE = (datetime.MINYEAR, 1, 1, 0, 0, 0, 0)
 
 POLL_INTERVAL = 0.001  # small delay to prevent polling threads consuming 100% CPU
 
@@ -53,34 +56,36 @@ READY_SIGNAL = -1
 logger = logging.getLogger(__name__)
 
 
-class WeaponsOfficer(object):
+class LaserController(object):
     """Class for controlling the behaviour of the laser in a fire-and-forget fashion."""
     __instance = None
 
     def __init__(self):
-        self.console = WeaponsConsole()
-        self.weapons_system = WeaponsSystem(self.console)
+        self.interface = LaserInterface()
+        self.laser_process = LaserProcess(self.interface)
         self.logger = logging.getLogger(type(self).__name__)
 
     def start(self):
         """Start the underlying WeaponsSystem process; blocks until laser is ready"""
         self.logger.debug('Starting laser process')
-        self.weapons_system.start()
-        while self.console.last_fired < READY_SIGNAL:
+        self.laser_process.start()
+        while self.interface.stood_down:
             time.sleep(POLL_INTERVAL)
 
     @property
     def last_fired(self):
         """Float timestamp, in seconds since the Epoch, when the laser last fired."""
-        return self.console.last_fired
+        return self.interface.last_fired
 
     @property
     def last_hit(self):
-        return self.console.last_hit
+        """Float timestamp, in seconds since the Epoch, when the robot was last hit with a laser"""
+        return self.interface.last_hit
 
     @property
     def is_disabled(self):
-        return self.console.is_disabled
+        """Whether the laser is currently disabled by being hit"""
+        return self.interface.is_disabled
 
     def fire_multiple(self, shots=1, timeout_per_shot=None):
         """
@@ -113,10 +118,10 @@ class WeaponsOfficer(object):
         bool
             Whether the laser successfully fired in the time given
         """
-        previous_fire = self.console.last_fired
-        self.console.firing = True
-        result = self.console.wait_for_change('last_fired', previous_fire, timeout)
-        self.console.firing = False
+        previous_fire = self.interface.last_fired
+        self.interface.firing = True
+        result = self.interface.wait_for_change('last_fired', previous_fire, timeout)
+        self.interface.firing = False
         return result
 
     def fire_at_will(self, block=False, timeout=None):
@@ -138,17 +143,17 @@ class WeaponsOfficer(object):
         result = None
         if block:
             result = self.fire_once(timeout)
-        self.console.firing = True
+        self.interface.firing = True
         return result
 
     def hold_fire(self):
         """Stop firing the laser"""
-        self.console.firing = False
+        self.interface.firing = False
 
     def stand_down(self):
         """Stop firing the laser and close the underlying process. Blocks until the process is closed."""
-        self.console.stood_down = True
-        self.weapons_system.join()
+        self.interface.stood_down = True
+        self.laser_process.join()
         self.__instance = None
 
     @classmethod
@@ -169,7 +174,48 @@ class WeaponsOfficer(object):
         self.stand_down()
 
 
-class WeaponsConsole(object):
+def datetime_to_array(array, timestamp=None):
+    """
+    Set the given array
+
+    Parameters
+    ----------
+    timestamp : datetime.datetime
+    array : multiprocessing.Array
+
+    Returns
+    -------
+    None
+    """
+    array.acquire()
+    array[0] = timestamp.year
+    array[1] = timestamp.month
+    array[2] = timestamp.day
+    array[3] = timestamp.hour
+    array[4] = timestamp.minute
+    array[5] = timestamp.second
+    array[6] = timestamp.microsecond
+    array.release()
+
+
+def array_to_datetime(array):
+    """
+
+    Parameters
+    ----------
+    array : multiprocessing.Array
+
+    Returns
+    -------
+    datetime.datetime
+    """
+    array.acquire()
+    dt = datetime.datetime(*array)
+    array.release()
+    return dt
+
+
+class LaserInterface(object):
     """Object for passing commands into, and getting feedback from, weapons system"""
 
     def __init__(self, cooldown=LASER_COOLDOWN, recovery=RECOVERY):
@@ -183,11 +229,11 @@ class WeaponsConsole(object):
             Time in seconds for laser to reactivate after being hit
         """
         self._firing = Value('h', 0)
-        self._stood_down = Value('h', 0)
-        self._last_fired = Value('d', INITIAL_VALUE)
-        self._last_hit = Value('d', READY_SIGNAL)
-        self.cooldown = cooldown
-        self.recovery = recovery
+        self._stood_down = Value('h', 1)  # start stood down; LaserProcess brings online
+        self._last_fired = Array('L', EPOCH_TUPLE)
+        self._last_hit = Array('L', EPOCH_TUPLE)
+        self.cooldown = datetime.timedelta(seconds=cooldown)
+        self.recovery = datetime.timedelta(seconds=recovery)
 
     @property
     def firing(self):
@@ -207,38 +253,38 @@ class WeaponsConsole(object):
 
     @property
     def last_fired(self):
-        return self._last_fired.value
+        return array_to_datetime(self._last_fired)
 
     @last_fired.setter
     def last_fired(self, new_value):
-        self._last_fired.value = new_value
+        datetime_to_array(self._last_fired, new_value)
 
     @property
     def last_hit(self):
-        return self._last_hit.value
+        return array_to_datetime(self._last_hit)
 
     @last_hit.setter
     def last_hit(self, new_value):
-        self._last_hit.value = new_value
+        datetime_to_array(self._last_hit, new_value)
 
     @property
     def is_cooling(self):
-        return time.time() < self.last_fired + self.cooldown
+        return datetime.datetime.utcnow() - self.last_fired < self.cooldown
 
     @property
     def is_disabled(self):
-        return time.time() < self.last_hit + self.recovery
+        return datetime.datetime.utcnow() - self.last_hit < self.recovery
 
     def wait_for_change(self, attribute, initial=None, timeout=None):
-        started = time.time()
-        finish = started + timeout if timeout else float('inf')
+        started = datetime.datetime.now()
+        finish = started + datetime.timedelta(seconds=timeout) if timeout else datetime.datetime(datetime.MAXYEAR, 1, 1)
 
         if initial is None:
             initial = getattr(self, attribute)
 
         value = getattr(self, attribute)
         while value == initial:
-            if time.time() > finish:
+            if datetime.datetime.utcnow() > finish:
                 return False
             time.sleep(POLL_INTERVAL)
             value = getattr(self, attribute)
@@ -246,10 +292,10 @@ class WeaponsConsole(object):
         return True
 
 
-class WeaponsSystem(Process):
-    def __init__(self, weapons_console):
-        super(WeaponsSystem, self).__init__()
-        self.console = weapons_console
+class LaserProcess(Process):
+    def __init__(self, laser_interface):
+        super(LaserProcess, self).__init__()
+        self.interface = laser_interface
         self.ser = None
         self.logger = None
 
@@ -257,8 +303,8 @@ class WeaponsSystem(Process):
         self.logger = logging.getLogger(type(self).__name__)
         self._setup_serial()
 
-        while not self.console.stood_down:
-            if self.console.firing and not self.console.is_cooling and not self._check_hit():
+        while not self.interface.stood_down:
+            if self.interface.firing and not self.interface.is_cooling and not self._check_hit():
                 self._fire()
 
             time.sleep(POLL_INTERVAL)
@@ -266,15 +312,15 @@ class WeaponsSystem(Process):
     def _setup_serial(self):
         if self.ser is None:
             self.ser = PixySerial.get()
-        self.console.last_fired = READY_SIGNAL
+        self.interface.stood_down = False
 
     def _check_hit(self):
-        if self.console.is_disabled:
+        if self.interface.is_disabled:
             return True
 
         if self.ser.in_waiting and self.ser.readline().rstrip() == 'HIT':
             self.logger.warn("We've been hit!")
-            self.console.last_hit = time.time()
+            self.interface.last_hit = datetime.datetime.utcnow()
             return True
 
         return False
@@ -282,4 +328,5 @@ class WeaponsSystem(Process):
     def _fire(self):
         self.logger.debug('Firing!')
         self.ser.write("FIRE\n")
-        self.logger.debug('Laser cooling for {}s'.format(self.console.cooldown))
+        self.interface.last_fired = datetime.datetime.utcnow()
+        self.logger.debug('Laser cooling for {}s'.format(self.interface.cooldown))
