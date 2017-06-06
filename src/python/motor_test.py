@@ -18,7 +18,6 @@ commands are skipped to save time. `test_import_*` should both fail in this mode
 from __future__ import division
 from utils.constants import MAX_MOTOR_SPEED, PIXY_RCS_PAN_CHANNEL
 import logging
-from utils.bot_logging import get_logger_name
 import pytest
 import time
 
@@ -57,7 +56,7 @@ def test_import_pixy():
     from pixy import pixy
 
 
-logger = logging.getLogger(get_logger_name(logging.DEBUG))
+logger = logging.getLogger(__name__)
 try:
     from pololu_drv8835_rpi import motors
 except:
