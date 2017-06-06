@@ -11,6 +11,7 @@ from pixy import pixy
 from pololu_drv8835_rpi import motors
 from utils.robot_state import RobotState
 import search
+from utils.shooting import LaserController
 
 serial_device = '/dev/ttyACM0'
 baudRate = 9600
@@ -294,7 +295,7 @@ def loop(robot_state):
             # then switch "search"
             robot_state.throttle = 0.5
             robot_state.diff_drive = 0 #abs(float(pan_error) / 300+.4)
-        
+
             if not block is None:
                 print 'hello', block.width
                 object_dist = ref_size1 / (2 * math.tan(math.radians(block.width * pix2ang_factor)))
@@ -349,10 +350,12 @@ def drive(robot_state):
 if __name__ == '__main__':
     try:
         robot_state = setup()
-        while True:
-            ok = loop(robot_state)
-            if not ok:
-                break
+        with LaserController() as controller:
+            controller.fire_at_will()
+            while True:
+                ok = loop(robot_state)
+                if not ok:
+                    break
     finally:
         pixy.pixy_close()
         motors.setSpeeds(0, 0)
