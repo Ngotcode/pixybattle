@@ -59,6 +59,9 @@ class PixySerial(object):
 
     @classmethod
     def get(cls):
+        if cls._serial is None:
+            logger.debug('Getting serial device {}'.format(cls.SERIAL_DEVICE))
+
         while cls._serial is None:
             try:
                 cls._serial = serial.Serial(cls.SERIAL_DEVICE, cls.BAUD_RATE)
@@ -68,6 +71,7 @@ class PixySerial(object):
                     "Could not open serial device {}, retrying in {}s".format(cls.SERIAL_DEVICE, cls.RETRY_INTERVAL)
                 )
                 time.sleep(10)
+
         return cls._serial
 
 
