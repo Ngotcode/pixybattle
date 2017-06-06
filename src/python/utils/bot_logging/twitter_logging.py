@@ -11,27 +11,39 @@ from utils.bot_logging.image_logging import ImageCreator
 logger = logging.getLogger(__name__)
 
 CREDENTIALS_PATH = os.path.join(ROOT_DIR, 'team4_keys.json')
-MAX_LENGTH = 140
-CHARACTERS_RESERVED = 24
 
 
 class Tweeter(object):
     _instance = None
 
-    def __init__(self):
-        with open(CREDENTIALS_PATH) as f:
-            cred = json.load(f)
+    def __init__(self, api=None):
+        """
 
-        auth = tweepy.OAuthHandler(cred['consumer_key'], cred['consumer_secret'])
-        auth.set_access_token(cred['access_token'], cred['access_secret'])
-
-        self.api = tweepy.API(auth)
+        Parameters
+        ----------
+        api
+            By default, tweepy API instance is created using credentials in a json file. For testing purposes,
+            a dummy API can be passed in here.
+        """
         self.image_creator = ImageCreator()
 
+        if api is None:
+            with open(CREDENTIALS_PATH) as f:
+                cred = json.load(f)
+
+            auth = tweepy.OAuthHandler(cred['consumer_key'], cred['consumer_secret'])
+            auth.set_access_token(cred['access_token'], cred['access_secret'])
+
+            self.api = tweepy.API(auth)
+        else:
+            self.api = api
+
     def tweet(self, msg):
+        """Tweet the given message. The message is not validated for length etc."""
         self.api.update_status(msg)
 
     def tweet_blocks(self, blocks, msg='', title=None, **kwargs):
+        """Tweet an image of a sequence of blocks"""
         buf = BytesIO(self.image_creator.save_bytes(blocks, title, **kwargs))
         buf.seek(0)
         self.api.update_with_media('image.png', status=msg, file=buf)
