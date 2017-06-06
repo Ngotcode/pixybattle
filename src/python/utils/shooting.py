@@ -326,7 +326,7 @@ class LaserProcess(Process):
             return True
 
         if self.ser.in_waiting and self.ser.readline().rstrip() == 'HIT':
-            self.logger.warn("We've been hit!")
+            self.logger.warn("We've been hit! Recovering for {}".format(self.interface.recovery))
             self.interface.last_hit = datetime.datetime.utcnow()
             return True
 
@@ -336,4 +336,4 @@ class LaserProcess(Process):
         self.logger.debug('Firing!')
         self.ser.write("FIRE\n")
         self.interface.last_fired = datetime.datetime.utcnow()
-        self.logger.debug('Laser cooling for {}s'.format(self.interface.cooldown))
+        self.logger.debug('Laser cooling for {}'.format(self.interface.cooldown))
