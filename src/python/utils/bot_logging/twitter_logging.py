@@ -1,4 +1,34 @@
 #!/usr/bin/env python
+"""
+This module allows the robot to tweet.
+
+Before it can be used, the `team4_keys.json` file must be saved in the pixybattle root directory (this MUST NOT be
+checked into git).
+
+>>> from utils.bot_logging import Tweeter
+>>> tweeter = Tweeter()
+
+The `Tweeter` takes optional keyword arguments of `default_prob` (default set in constants.py,
+sets the default probability of any given tweet actually being sent), and `seed` (default None, to control the random
+number generator).
+
+You can send basic text tweets:
+>>> tweeter.tweet('This is a message')
+Or create an image from a list of blocks and tweet that:
+>>> tweeter.tweet_blocks(blocks, msg='Message to tweet with the image', title='Image title', **matplotlib_args)
+(only `blocks` is required)
+
+You can also randomly select a tweet from a pre-defined list appropriate to a given situation. The situations are
+enumerated in the `Saying` class.
+>>> from utils.bot_logging import Saying
+>>> print([saying.name for saying in Saying])  # see what sayings are available
+
+To tweet a saying, simply
+>>> tweeter.tweet_saying(Saying.LASER_FIRING)
+
+All of the tweet methods take the optional argument `p`, which defines the probability of sending that particular
+tweet, to override the instance default set in the constructor.
+"""
 import os
 import json
 import logging
@@ -8,7 +38,7 @@ import random
 import tweepy
 from enum import Enum
 
-from utils.constants import ROOT_DIR, TWEET_PROB
+from utils.constants import ROOT_DIR, TWEET_DEFAULT_PROB
 from utils.bot_logging.image_logging import ImageCreator
 
 logger = logging.getLogger(__name__)
@@ -20,7 +50,7 @@ CREDENTIALS_PATH = os.path.join(ROOT_DIR, 'team4_keys.json')
 SAYINGS_ROOT = os.path.join(ROOT_DIR, 'sayings')
 
 
-class Sayings(Enum):
+class Saying(Enum):
     STARTING_UP = 'starting_up.txt'
     LASER_FIRING = 'laser_firing.txt'
     RECEIVED_HIT = 'received_hit.txt'
@@ -29,26 +59,24 @@ class Sayings(Enum):
     RANDOM = 'random.txt'
 
 
-def pick_saying(saying):
-    with open(os.path.join(SAYINGS_ROOT, saying.value)) as f:
-        lines = f.read().strip().split('\n')
-
-    return random.choice(lines)
-
-
 class Tweeter(object):
     api = None
 
-    def __init__(self, api=None):
+    def __init__(self, default_prob=TWEET_DEFAULT_PROB, seed=None, api=None):
         """
 
         Parameters
         ----------
+        default_prob : float
+            Between 0 and 1, the default probability that any given tweet will be sent
+        seed : int
+            Seed for the random number generator
         api
-            By default, tweepy API instance is created using credentials in a json file. For testing purposes,
-            a dummy API can be passed in here.
+            For testing purposes. Default will create a new tweepy.API instance
         """
         self.image_creator = ImageCreator()
+        self.default_prob = default_prob
+        self.random = random.Random(seed)
 
         if self.api is None:
             if api is None:
@@ -61,41 +89,99 @@ class Tweeter(object):
                 api = tweepy.API(auth)
             type(self).api = api
 
-    def tweet(self, msg):
-        """Tweet the given message. The message is not validated for length etc."""
-        self.api.update_status(msg)
+    def _pick_saying(self, saying):
+        """
+        Randomly select a message for the given situation.
 
-    def tweet_saying(self, saying):
-        msg = pick_saying(saying)
-        self.tweet(msg)
+        Parameters
+        ----------
+        saying : Saying
+            Enum for which newline-separated file to pick message from
 
-    def tweet_blocks(self, blocks, msg='', title=None, **kwargs):
-        """Tweet an image of a sequence of blocks"""
-        buf = BytesIO(self.image_creator.save_bytes(blocks, title, **kwargs))
-        buf.seek(0)
-        self.api.update_with_media('image.png', status=msg, file=buf)
+        Returns
+        -------
+        str
+        """
+        with open(os.path.join(SAYINGS_ROOT, saying.value)) as f:
+            lines = f.read().strip().split('\n')
 
+        return self.random.choice(lines)
 
-class ProbabilisticTweeter(object):
-    def __init__(self, api=None, default_prob=TWEET_PROB, seed=None):
-        self.tweeter = Tweeter(api)
-        self.random = random.Random(seed)
-        self.default_prob = default_prob
-
-    def permit(self, p=None):
+    def _permit(self, p=None):
+        """Whether to permit a tweet to go through"""
         return self.random.random() < (p if p is None else self.default_prob)
 
     def tweet(self, msg, p=None):
-        if self.permit(p):
-            self.tweeter.tweet(msg)
+        """
+        Tweet the given message.
+
+        Parameters
+        ----------
+        msg : str
+            Message to tweet. This is not validated (for length etc.).
+        p : float
+            Between 0 and 1, the probability that this tweet will be sent
+
+        Returns
+        -------
+        bool
+            Whether the tweet sent
+        """
+        if self._permit(p):
+            self.api.update_status(msg)
+            return True
+        return False
 
     def tweet_saying(self, saying, p=None):
-        if self.permit(p):
-            self.tweeter.tweet_saying(saying)
+        """
+        Tweet a random one of a number of pre-defined sayings.
 
-    def tweet_blocks(self, blocks, msg='', title=None, p=None, **kwargs):
-        if self.permit(p):
-            self.tweeter.tweet_blocks(blocks, msg=msg, title=title, **kwargs)
+        Parameters
+        ----------
+        saying : Saying
+            Enum for which newline-separated file to pick message from
+        p : float
+            Between 0 and 1, the probability that this tweet will be sent
+
+        Returns
+        -------
+        bool
+            Whether the tweet sent
+        """
+        if self._permit(p):
+            msg = self._pick_saying(saying)
+            self.api.update(msg)
+            return True
+        return False
+
+    def tweet_blocks(self, blocks, p=None, msg='', title=None, **kwargs):
+        """
+        Tweet an image of a sequence of blocks
+
+        Parameters
+        ----------
+        blocks : sequence
+            Iterable sequence of Blocks, GenericBlock, or PixyBlock objects
+        p : float
+            Between 0 and 1, the probability that this tweet will be sent
+        msg : str
+            Message to tweet with the image (default empty string)
+        title : str
+            Title inside the image
+        kwargs
+            keyword arguments passed to `matplotlib.pyplot.savefig`
+
+        Returns
+        -------
+        bool
+            Whether the tweet sent
+        """
+        if self._permit(p):
+            buf = BytesIO(self.image_creator.save_bytes(blocks, title, **kwargs))
+            buf.seek(0)
+            self.api.update_with_media('image.png', status=msg, file=buf)
+            return True
+        return False
 
 
 if __name__ == '__main__':
@@ -105,5 +191,5 @@ if __name__ == '__main__':
     except IndexError:
         msg = "Testing one two three... is this thing on?"
 
-    tweeter = Tweeter()
+    tweeter = Tweeter(default_prob=1)
     tweeter.tweet(msg)
