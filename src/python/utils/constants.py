@@ -46,7 +46,7 @@ RECOVERY = 5  # time it takes for laser to reactivate after being hit, in second
 
 # TWEETING
 
-TWEET_PROB = 0.1
+TWEET_DEFAULT_PROB = 1
 
 # todo: may not be necessary
 class PixySerial(object):
