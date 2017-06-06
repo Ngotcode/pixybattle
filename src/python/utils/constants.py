@@ -44,6 +44,9 @@ MIN_MOTOR_SPEED = -480
 LASER_COOLDOWN = 1  # seconds
 RECOVERY = 5  # time it takes for laser to reactivate after being hit, in seconds
 
+# TWEETING
+
+TWEET_PROB = 0.1
 
 # todo: may not be necessary
 class PixySerial(object):
