@@ -9,3 +9,4 @@ log_root = os.path.join(ROOT_DIR, 'logs')
 timestamp = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 
 LOG_DIR = os.path.join(log_root, timestamp)
+LOG_PATH = os.path.join(LOG_DIR, 'logs.txt')
