@@ -6,6 +6,7 @@ from io import BytesIO
 import random
 
 import tweepy
+from enum import Enum
 
 from utils.constants import ROOT_DIR, TWEET_PROB
 from utils.bot_logging.image_logging import ImageCreator
@@ -16,6 +17,23 @@ for logger_name in ['requests', 'requests_oauthlib', 'oauthlib']:
     logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 CREDENTIALS_PATH = os.path.join(ROOT_DIR, 'team4_keys.json')
+SAYINGS_ROOT = os.path.join(ROOT_DIR, 'sayings')
+
+
+class Sayings(Enum):
+    STARTING_UP = 'starting_up.txt'
+    LASER_FIRING = 'laser_firing.txt'
+    RECEIVED_HIT = 'received_hit.txt'
+    MOVING = 'moving.txt'
+    SHUTTING_DOWN = 'shutting_down.txt'
+    RANDOM = 'random.txt'
+
+
+def pick_saying(saying):
+    with open(os.path.join(SAYINGS_ROOT, saying.value)) as f:
+        lines = f.read().strip().split('\n')
+
+    return random.choice(lines)
 
 
 class Tweeter(object):
@@ -47,6 +65,10 @@ class Tweeter(object):
         """Tweet the given message. The message is not validated for length etc."""
         self.api.update_status(msg)
 
+    def tweet_saying(self, saying):
+        msg = pick_saying(saying)
+        self.tweet(msg)
+
     def tweet_blocks(self, blocks, msg='', title=None, **kwargs):
         """Tweet an image of a sequence of blocks"""
         buf = BytesIO(self.image_creator.save_bytes(blocks, title, **kwargs))
@@ -54,19 +76,26 @@ class Tweeter(object):
         self.api.update_with_media('image.png', status=msg, file=buf)
 
 
-class ProbabilisticTweeter(Tweeter):
+class ProbabilisticTweeter(object):
     def __init__(self, api=None, default_prob=TWEET_PROB, seed=None):
-        super(ProbabilisticTweeter, self).__init__(api)
+        self.tweeter = Tweeter(api)
         self.random = random.Random(seed)
         self.default_prob = default_prob
 
+    def permit(self, p=None):
+        return self.random.random() < (p if p is None else self.default_prob)
+
     def tweet(self, msg, p=None):
-        if self.random.random() < (p if p is None else self.default_prob):
-            super(ProbabilisticTweeter, self).tweet(msg)
+        if self.permit(p):
+            self.tweeter.tweet(msg)
+
+    def tweet_saying(self, saying, p=None):
+        if self.permit(p):
+            self.tweeter.tweet_saying(saying)
 
     def tweet_blocks(self, blocks, msg='', title=None, p=None, **kwargs):
-        if self.random.random() < (p if p is None else self.default_prob):
-            super(ProbabilisticTweeter, self).tweet_blocks(blocks, msg='', title=None, **kwargs)
+        if self.permit(p):
+            self.tweeter.tweet_blocks(blocks, msg=msg, title=title, **kwargs)
 
 
 if __name__ == '__main__':
