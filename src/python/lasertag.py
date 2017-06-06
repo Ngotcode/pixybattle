@@ -12,6 +12,7 @@ from pololu_drv8835_rpi import motors
 from utils.robot_state import RobotState
 import search
 from utils.shooting import LaserController
+import logging
 
 serial_device = '/dev/ttyACM0'
 baudRate = 9600
@@ -191,7 +192,8 @@ def logit(x, k, x0):
 
 def drive_toward_block(robot_state, block):
     pan_error = PIXY_X_CENTER - block.x
-    object_dist = ref_size1 / (2 * math.tan(math.radians(block.width * pix2ang_factor)))
+    # object_dist = ref_size1 / (2 * math.tan(math.radians(block.width * pix2ang_factor)))
+    object_dist = ref_size1 / (2 * math.tan(math.radians(block.height * pix2ang_factor)))
     robot_state.throttle = 0.5
     # amount of steering depends on how much deviation is there
     robot_state.diff_drive = abs(float(pan_error) / 300+.4)
@@ -297,8 +299,8 @@ def loop(robot_state):
             robot_state.diff_drive = 0 #abs(float(pan_error) / 300+.4)
 
             if not block is None:
-                print 'hello', block.width
-                object_dist = ref_size1 / (2 * math.tan(math.radians(block.width * pix2ang_factor)))
+                # print 'hello', block.width
+                object_dist = ref_size1 / (2 * math.tan(math.radians(block.height * pix2ang_factor)))
                 dist_error = object_dist - target_dist
                 robot_state.advance = logit(dist_error, .025, 400)
                 if robot_state.advance < .05:
@@ -348,7 +350,9 @@ def drive(robot_state):
     return int(l_drive), int(r_drive)
 
 if __name__ == '__main__':
+    logging.getLogger("utils.shooting").setLevel(logging.WARNING)
     try:
+        pixy.pixy_cam_set_brightness(20)
         robot_state = setup()
         with LaserController() as controller:
             controller.fire_at_will()
