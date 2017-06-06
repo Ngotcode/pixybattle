@@ -98,6 +98,7 @@ class LaserController(object):
         timeout_per_shot : float
             Maximum time to wait for each shot. If None (default), it will wait indefinitely.
         """
+        self.logger.info('Fire {} times!'.format(shots))
         results = []
         for _ in range(shots):
             results.append(self.fire_once(timeout_per_shot))
@@ -118,6 +119,7 @@ class LaserController(object):
         bool
             Whether the laser successfully fired in the time given
         """
+        self.logger.info('Fire once!')
         previous_fire = self.interface.last_fired
         self.interface.firing = True
         result = self.interface.wait_for_change('last_fired', previous_fire, timeout)
@@ -140,6 +142,7 @@ class LaserController(object):
         bool or None
             If block is True, a boolean is returned for whether the laser successfully fired before the timeout.
         """
+        self.logger.info('Fire at will!')
         result = None
         if block:
             result = self.fire_once(timeout)
@@ -153,6 +156,7 @@ class LaserController(object):
     def stand_down(self):
         """Stop firing the laser and close the underlying process. Blocks until the process is closed."""
         self.interface.stood_down = True
+        self.logger.debug('Stopping laser process')
         self.laser_process.join()
         self.__instance = None
 
@@ -301,6 +305,7 @@ class LaserProcess(Process):
 
     def run(self):
         self.logger = logging.getLogger(type(self).__name__)
+        self.logger.debug('Laser Process started')
         self._setup_serial()
 
         while not self.interface.stood_down:
@@ -308,6 +313,8 @@ class LaserProcess(Process):
                 self._fire()
 
             time.sleep(POLL_INTERVAL)
+
+        self.logger.debug('Laser Process stood down')
 
     def _setup_serial(self):
         if self.ser is None:
