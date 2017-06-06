@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import os
 import json
 import logging
@@ -9,6 +10,9 @@ from utils.constants import ROOT_DIR
 from utils.bot_logging.image_logging import ImageCreator
 
 logger = logging.getLogger(__name__)
+
+for logger_name in ['requests', 'requests_oauthlib', 'oauthlib']:
+    logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 CREDENTIALS_PATH = os.path.join(ROOT_DIR, 'team4_keys.json')
 
@@ -51,6 +55,17 @@ class Tweeter(object):
     @classmethod
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
-            cls._instance = cls()
+            cls._instance = object.__new__(cls)
 
         return cls._instance
+
+
+if __name__ == '__main__':
+    import sys
+    try:
+        msg = sys.argv[1]
+    except IndexError:
+        msg = "Testing one two three... is this thing on?"
+
+    tweeter = Tweeter()
+    tweeter.tweet(msg)
