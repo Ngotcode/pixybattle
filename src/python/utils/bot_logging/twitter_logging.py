@@ -19,12 +19,12 @@ Or create an image from a list of blocks and tweet that:
 (only `blocks` is required)
 
 You can also randomly select a tweet from a pre-defined list appropriate to a given situation. The situations are
-enumerated in the `Saying` class.
->>> from utils.bot_logging import Saying
->>> print([saying.name for saying in Saying])  # see what sayings are available
+enumerated in the `Situation` class.
+>>> from utils.bot_logging import Situation
+>>> print([situation.name for situation in Situation])  # see what sayings are available
 
 To tweet a saying, simply
->>> tweeter.tweet_saying(Saying.LASER_FIRING)
+>>> tweeter.tweet_canned(Situation.LASER_FIRING)
 
 All of the tweet methods take the optional argument `p`, which defines the probability of sending that particular
 tweet, to override the instance default set in the constructor.
@@ -50,7 +50,7 @@ CREDENTIALS_PATH = os.path.join(ROOT_DIR, 'team4_keys.json')
 SAYINGS_ROOT = os.path.join(ROOT_DIR, 'sayings')
 
 
-class Saying(Enum):
+class Situation(Enum):
     STARTING_UP = 'starting_up.txt'
     LASER_FIRING = 'laser_firing.txt'
     RECEIVED_HIT = 'received_hit.txt'
@@ -95,7 +95,7 @@ class Tweeter(object):
 
         Parameters
         ----------
-        saying : Saying
+        saying : Situation
             Enum for which newline-separated file to pick message from
 
         Returns
@@ -132,13 +132,13 @@ class Tweeter(object):
             return True
         return False
 
-    def tweet_saying(self, saying, p=None):
+    def tweet_canned(self, saying, p=None):
         """
         Tweet a random one of a number of pre-defined sayings.
 
         Parameters
         ----------
-        saying : Saying
+        saying : Situation
             Enum for which newline-separated file to pick message from
         p : float
             Between 0 and 1, the probability that this tweet will be sent
