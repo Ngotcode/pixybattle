@@ -47,7 +47,7 @@ for logger_name in ['requests', 'requests_oauthlib', 'oauthlib']:
     logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 CREDENTIALS_PATH = os.path.join(ROOT_DIR, 'team4_keys.json')
-SAYINGS_ROOT = os.path.join(ROOT_DIR, 'sayings')
+SAYINGS_ROOT = os.path.join(ROOT_DIR, 'tweets')
 
 
 class Situation(Enum):
