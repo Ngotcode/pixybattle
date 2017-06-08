@@ -333,7 +333,7 @@ class LaserProcess(Process):
         return False
 
     def _fire(self):
-        self.logger.debug('Firing!')
+        self.logger.firing_log('Firing!')
         self.ser.write("FIRE\n")
         self.interface.last_fired = datetime.datetime.utcnow()
-        self.logger.debug('Laser cooling for {}s'.format(self.interface.cooldown))
+        self.logger.firing_log('Laser cooling for {}s'.format(self.interface.cooldown))
