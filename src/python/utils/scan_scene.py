@@ -6,7 +6,7 @@ from utils.vision import PixyBlock
 
 ratio_thres = 500
 wait_time = 0
-step_size = 1
+step_size = 4
 
 
 def print_block_info(blocks):
@@ -62,8 +62,8 @@ def scan_scene(do_pan):
     tar_area = 0
     tar_block = None
 
-
     if do_pan == 'search':
+        start_time = time.time()
         for pan_view in range(0, 1000, step_size):
             pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_view)
             time.sleep(wait_time)
@@ -73,12 +73,15 @@ def scan_scene(do_pan):
                 tar_area = max_area_pan
                 tar_block = block
                 tar_pan_view = pan_view
-
+        end_time = time.time()
         # print(tar_pan_view)
+        print(end_time - start_time)
+
         if tar_pan_view < 0:
             tar_pan_view = PIXY_RCS_CENTER_POS
         pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, tar_pan_view)
     elif do_pan == "chase":
+    # if do_pan in ["search", "chase"]:
         blocks = PixyBlock.from_pixy()
         tar_block, _ = find_max_block_in_scene(blocks, SIGNATURE_LIST, TARGET_WEIGHT_MATRIX)
     elif do_pan == "roam":

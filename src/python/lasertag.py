@@ -354,7 +354,7 @@ def drive(robot_state):
 if __name__ == '__main__':
     logging.getLogger("utils.shooting").setLevel(logging.WARNING)
     try:
-        pixy.pixy_cam_set_brightness(20)
+        # pixy.pixy_cam_set_brightness(20)
         robot_state = setup()
         with LaserController() as controller:
             controller.fire_at_will()
