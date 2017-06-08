@@ -63,7 +63,7 @@ class LaserController(object):
     def __init__(self):
         self.interface = LaserInterface()
         self.laser_process = LaserProcess(self.interface)
-        self.logger = logging.getLogger(type(self).__name__)
+        self.logger = logging.getLogger('{}.{}'.format(__name__, type(self).__name__))
 
     def start(self):
         """Start the underlying WeaponsSystem process; blocks until laser is ready"""
@@ -304,7 +304,7 @@ class LaserProcess(Process):
         self.logger = None
 
     def run(self):
-        self.logger = logging.getLogger(type(self).__name__)
+        self.logger = logging.getLogger('{}.{}'.format(__name__, type(self).__name__))
         self.logger.debug('Laser Process started')
         self._setup_serial()
 
@@ -326,7 +326,7 @@ class LaserProcess(Process):
             return True
 
         if self.ser.in_waiting and self.ser.readline().rstrip() == 'HIT':
-            self.logger.warn("We've been hit!")
+            self.logger.warn("We've been hit! Recovering for {}".format(self.interface.recovery))
             self.interface.last_hit = datetime.datetime.utcnow()
             return True
 
@@ -336,4 +336,4 @@ class LaserProcess(Process):
         self.logger.firing_log('Firing!')
         self.ser.write("FIRE\n")
         self.interface.last_fired = datetime.datetime.utcnow()
-        self.logger.firing_log('Laser cooling for {}s'.format(self.interface.cooldown))
+        self.logger.firing_log('Laser cooling for {}'.format(self.interface.cooldown))
