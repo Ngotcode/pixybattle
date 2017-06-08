@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from utils.scan_scene import scan_scene
 import time
 import sys
