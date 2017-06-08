@@ -57,6 +57,11 @@ if __name__ == '__main__':
 This should ONLY be done in an entry point - i.e. a script you call directly from the command line, and in an
 `if __name__ is '__main__':` block - otherwise you can mess with other people's scripts if they import from your module.
 
+Log messages for every shot from the laser can be silenced two ways.
+If you want to silence them in both the console log and the file log, use `logging.getLogger().setLevel(logging.DEBUG)`.
+If you want to silence them in the console but keep them in the file log, use `from utils.bot_logging import set_log_level; set_log_level(logging.DEBUG)`.
+
+
 ### Image logging
 
 To log a set of blocks seen by the robot as an image:
