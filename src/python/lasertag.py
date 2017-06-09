@@ -2,9 +2,9 @@
 
 from utils.scan_scene import scan_scene
 import time
-import sys
+# import sys
 import signal
-import ctypes
+# import ctypes
 import math
 import serial
 import numpy as np
@@ -116,20 +116,20 @@ def handle_SIGINT(sig, frame):
     run_flag = False
 
 
-class Blocks(ctypes.Structure):
-    """
-    Block structure for use with getting blocks from
-    pixy.get_blocks()
-    """
-    _fields_ = [
-        ("type", ctypes.c_uint),
-        ("signature", ctypes.c_uint),
-        ("x", ctypes.c_uint),
-        ("y", ctypes.c_uint),
-        ("width", ctypes.c_uint),
-        ("height", ctypes.c_uint),
-        ("angle", ctypes.c_uint)
-    ]
+# class Blocks(ctypes.Structure):
+#     """
+#     Block structure for use with getting blocks from
+#     pixy.get_blocks()
+#     """
+#     _fields_ = [
+#         ("type", ctypes.c_uint),
+#         ("signature", ctypes.c_uint),
+#         ("x", ctypes.c_uint),
+#         ("y", ctypes.c_uint),
+#         ("width", ctypes.c_uint),
+#         ("height", ctypes.c_uint),
+#         ("angle", ctypes.c_uint)
+#     ]
 
 
 class ServoLoop(object):
