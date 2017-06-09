@@ -1,27 +1,20 @@
 #!/usr/bin/env python
 
+from utils.scan_scene import scan_scene
 import time
+import sys
 import signal
 import ctypes
 import math
-import logging
-from datetime import datetime
-
 import serial
 import numpy as np
-
+from datetime import datetime
 from pixy import pixy
 from pololu_drv8835_rpi import motors
-
-from utils.bot_logging import set_log_level
 from utils.robot_state import RobotState
-from utils.shooting import LaserController
-from utils.scan_scene import scan_scene
 import search
-
-logger = logging.getLogger(__name__)
-block_logger = logging.getLogger(__name__ + '.block')
-behaviour_logger = logging.getLogger(__name__ + '.behaviour')
+from utils.shooting import LaserController
+import logging
 
 serial_device = '/dev/ttyACM0'
 baudRate = 9600
@@ -32,7 +25,7 @@ while True:
         ser = serial.Serial(serial_device, baudRate)
         break
     except:
-        logger.warn("Could not open serial device {}".format(serial_device))
+        print "Could not open serial device {}".format(serial_device)
         time.sleep(10)
 
 # defining PixyCam sensory variables
@@ -112,7 +105,6 @@ target_dist = 1
 ref_dist = 400
 
 blocks = None
-do_pan = 1
 
 def handle_SIGINT(sig, frame):
     """
@@ -173,17 +165,16 @@ def setup():
     # global blocks
     pixy_init_status = pixy.pixy_init()
     if pixy_init_status != 0:
-        logger.error('pixy_init() failed with status [%d] ' % pixy_init_status)
+        print 'Error: pixy_init() [%d] ' % pixy_init_status
         pixy.pixy_error(pixy_init_status)
         return
     else:
-        logger.info("Pixy setup OK")
+        print "Pixy setup OK"
     blocks = pixy.BlockArray(BLOCK_BUFFER_SIZE)
     signal.signal(signal.SIGINT, handle_SIGINT)
     robot_state = RobotState(blocks, datetime.now(), MAX_MOTOR_SPEED)
     return robot_state
 
-# killed = False
 
 def bias_computation(robot_state, dt, pan_loop):
     # should be still int32_t
@@ -210,10 +201,8 @@ def drive_toward_block(robot_state, block):
     # this is in float format with sign indicating advancing or retreating
     robot_state.advance = logit(dist_error, .025, 400)
     # float(dist_error) / ref_dist
-    # logger.debug('dist_error / ref_dist = {}'.format(float(dist_error) / ref_dist))
-    # logger.debug(
-    #     'dist_error:%f, ref_dist:%f, object_dist:%f, target_dist:%f' % (dist_error, ref_dist, object_dist, target_dist)
-    # )
+    # print float(dist_error) / ref_dist
+    #print 'dist_error:%f, ref_dist:%f, object_dist:%f, target_dist:%f'%(dist_error, ref_dist, object_dist, target_dist)
     return pan_error
 
 def loop(robot_state):
@@ -221,15 +210,10 @@ def loop(robot_state):
     Main loop, Gets blocks from pixy, analyzes target location,
     chooses action for robot and sends instruction to motors
     """
-    # global blocks, throttle, diff_drive, diff_gain, bias, advance, turn_error,
-    # global current_time, last_time, object_dist, dist_error, pan_error_prev,
-    # global dist_error_prev, pan_loop, killed, last_fire
-    # global do_pan
-
     if ser.in_waiting:
-        logger.debug("Reading line from serial..")
+        print("Reading line from serial..")
         code = ser.readline().rstrip()
-        logger.debug("Got IR code {}".format(code))
+        print("Got IR code {}".format(code))
         robot_state.killed = True
         # if code=="58391E4E" or code=="9DF14DB3" or code=="68B92":
         #    killed = True
@@ -238,7 +222,7 @@ def loop(robot_state):
         #    killed = False
 
     if robot_state.killed:
-        logger.warn("I'm hit!")
+        print "I'm hit!"
         # motors.setSpeeds(0, 0)
         # time.sleep(5)
 
@@ -246,50 +230,38 @@ def loop(robot_state):
     # If no new blocks, don't do anything
     while not pixy.pixy_blocks_are_new() and run_flag:
         pass
-    # count = pixy.pixy_get_blocks(BLOCK_BUFFER_SIZE, robot_state.blocks)
-    # block = scan_scene(robot_state.blocks, do_pan)
     count = 0
     if robot_state.state == "search":
         block = search.simple_search(robot_state, motors)
         if block is not None:
-            # do_pan = 0
             count = 1
             robot_state.state = "chase"
-            behaviour_logger.info("from search to chase")
-            block_logger.debug('Block: {}'.format(block))
+            print "from search to chase"
+            print block
         else:
             robot_state.state = "roam"
-            block_logger.debug('Block: {}'.format(block))
-            behaviour_logger.info("from search to roam")
+            print block
+            print "from search to roam"
     if robot_state.state == "chase":
-        # block = scan_scene(robot_state.blocks, do_pan)
         block = scan_scene(robot_state.state)
         if block is None:
             count = 0
             robot_state.state = "roam"
-            behaviour_logger.info("from chase to roam")
+            print "from chase to roam"
             return run_flag
         else:
             count = 1
 
-        # If negative blocks, something went wrong
-
-        # if more than one block
-        # Check which the largest block's signature and either do target chasing or
-        # line following
         if count > 0:
             pan_error = drive_toward_block(robot_state, block)
             pan_loop.update(pan_error)
-
         # Update pixy's pan position
         pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_loop.m_pos)
-
         # if Pixy sees nothing recognizable, don't move.
         time_difference = robot_state.current_time - robot_state.previous_time
         if time_difference.total_seconds() >= timeout:
             throttle = 0.0
             diff_drive = 1
-
         dt = (robot_state.current_time - robot_state.previous_time).total_seconds()
         bias_computation(robot_state, dt, pan_loop)
         robot_state.previous_time = robot_state.current_time
@@ -299,7 +271,7 @@ def loop(robot_state):
         block = scan_scene("chase")
         if block is not None:
             robot_state.state = "chase"
-            behaviour_logger.info('roam to chase')
+            print 'roam to chase'
             # return run_flag
         else:
             # else, we are still in roam mode
@@ -310,13 +282,13 @@ def loop(robot_state):
             robot_state.diff_drive = 0 #abs(float(pan_error) / 300+.4)
 
             if not block is None:
-                # block_logger.debug('Block width: {}'.format(block.width))
+                # print 'hello', block.width
                 object_dist = ref_size1 / (2 * math.tan(math.radians(block.height * pix2ang_factor)))
                 dist_error = object_dist - target_dist
                 robot_state.advance = logit(dist_error, .025, 400)
                 if robot_state.advance < .05:
                     robot_state.state = "search"
-                    behaviour_logger.info('roam to search')
+                    print 'roam to search'
                     # return run_flag
                     robot_state.advance = 0
                 l_drive, r_drive = drive(robot_state)
@@ -361,7 +333,7 @@ def drive(robot_state):
     return int(l_drive), int(r_drive)
 
 if __name__ == '__main__':
-    set_log_level(logging.DEBUG)
+    logging.getLogger("utils.shooting").setLevel(logging.WARNING)
     try:
         # pixy.pixy_cam_set_brightness(20)
         robot_state = setup()
@@ -374,4 +346,4 @@ if __name__ == '__main__':
     finally:
         pixy.pixy_close()
         motors.setSpeeds(0, 0)
-        logger.critical("Robot Shutdown Completed")
+        print("Robot Shutdown Completed")
