@@ -20,14 +20,19 @@ Or create an image from a list of blocks and tweet that:
 
 You can also randomly select a tweet from a pre-defined list appropriate to a given situation. The situations are
 enumerated in the `Situation` class.
->>> from utils.bot_logging import Situation
->>> print([situation.name for situation in Situation])  # see what sayings are available
+>>> from utils.constants import Situation
+>>> print([situation.name for situation in Situation])  # see what situations are available
 
-To tweet a saying, simply
+To tweet a canned statement, simply
 >>> tweeter.tweet_canned(Situation.LASER_FIRING)
 
 All of the tweet methods take the optional argument `p`, which defines the probability of sending that particular
 tweet, to override the instance default set in the constructor.
+
+To add new canned statements, simply edit the files corresponding to each situation in the `tweets` directory in the
+pixybattle root.
+
+Tweets are not validated for length etc., user beware!
 """
 import os
 import json
@@ -36,9 +41,8 @@ from io import BytesIO
 import random
 
 import tweepy
-from enum import Enum
 
-from utils.constants import ROOT_DIR, TWEET_DEFAULT_PROB
+from utils.constants import ROOT_DIR, TWEET_DEFAULT_PROB, Situation
 from utils.bot_logging.image_logging import ImageCreator
 
 logger = logging.getLogger(__name__)
@@ -47,16 +51,7 @@ for logger_name in ['requests', 'requests_oauthlib', 'oauthlib']:
     logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 CREDENTIALS_PATH = os.path.join(ROOT_DIR, 'team4_keys.json')
-SAYINGS_ROOT = os.path.join(ROOT_DIR, 'tweets')
-
-
-class Situation(Enum):
-    STARTING_UP = 'starting_up.txt'
-    LASER_FIRING = 'laser_firing.txt'
-    RECEIVED_HIT = 'received_hit.txt'
-    MOVING = 'moving.txt'
-    SHUTTING_DOWN = 'shutting_down.txt'
-    RANDOM = 'random.txt'
+CANNED_TWEETS_ROOT = os.path.join(ROOT_DIR, 'tweets')
 
 
 class Tweeter(object):
@@ -80,36 +75,44 @@ class Tweeter(object):
 
         if self.api is None:
             if api is None:
-                with open(CREDENTIALS_PATH) as f:
-                    cred = json.load(f)
+                try:
+                    with open(CREDENTIALS_PATH) as f:
+                        cred = json.load(f)
 
-                auth = tweepy.OAuthHandler(cred['consumer_key'], cred['consumer_secret'])
-                auth.set_access_token(cred['access_token'], cred['access_secret'])
+                    auth = tweepy.OAuthHandler(cred['consumer_key'], cred['consumer_secret'])
+                    auth.set_access_token(cred['access_token'], cred['access_secret'])
 
-                api = tweepy.API(auth)
+                    api = tweepy.API(auth)
+                except IOError:
+                    logger.warn('API credentials not found at {}. Tweets will not be submitted.'.format(CREDENTIALS_PATH))
             type(self).api = api
 
-    def _pick_saying(self, saying):
+    def _pick_canned_tweet(self, situation):
         """
         Randomly select a message for the given situation.
 
         Parameters
         ----------
-        saying : Situation
+        situation : Situation
             Enum for which newline-separated file to pick message from
 
         Returns
         -------
         str
         """
-        with open(os.path.join(SAYINGS_ROOT, saying.value)) as f:
+        with open(os.path.join(CANNED_TWEETS_ROOT, situation.value)) as f:
             lines = f.read().strip().split('\n')
 
         return self.random.choice(lines)
 
     def _permit(self, p=None):
         """Whether to permit a tweet to go through"""
-        return self.random.random() < (p if p is None else self.default_prob)
+        if self.api is None:
+            logger.debug('No twitter API available, tweet will not be submitted.')
+            return False
+        is_permitted = self.random.random() <= (p if p is None else self.default_prob)
+        logger.debug('Tweeting' if is_permitted else 'Not tweeting (randomly)')
+        return is_permitted
 
     def tweet(self, msg, p=None):
         """
@@ -132,13 +135,13 @@ class Tweeter(object):
             return True
         return False
 
-    def tweet_canned(self, saying, p=None):
+    def tweet_canned(self, situation, p=None):
         """
-        Tweet a random one of a number of pre-defined sayings.
+        Tweet a random one of a number of pre-defined situations.
 
         Parameters
         ----------
-        saying : Situation
+        situation : Situation
             Enum for which newline-separated file to pick message from
         p : float
             Between 0 and 1, the probability that this tweet will be sent
@@ -149,7 +152,7 @@ class Tweeter(object):
             Whether the tweet sent
         """
         if self._permit(p):
-            msg = self._pick_saying(saying)
+            msg = self._pick_canned_tweet(situation)
             self.api.update(msg)
             return True
         return False

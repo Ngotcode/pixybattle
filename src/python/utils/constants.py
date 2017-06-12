@@ -48,6 +48,17 @@ RECOVERY = 5  # time it takes for laser to reactivate after being hit, in second
 
 TWEET_DEFAULT_PROB = 1
 
+
+class Situation(Enum):
+    """Enumerate the possible situations for which there are canned tweets available."""
+    STARTING_UP = 'starting_up.txt'
+    LASER_FIRING = 'laser_firing.txt'
+    RECEIVED_HIT = 'received_hit.txt'
+    MOVING = 'moving.txt'
+    SHUTTING_DOWN = 'shutting_down.txt'
+    RANDOM = 'random.txt'
+
+
 # todo: may not be necessary
 class PixySerial(object):
     RETRY_INTERVAL = 10  # seconds
