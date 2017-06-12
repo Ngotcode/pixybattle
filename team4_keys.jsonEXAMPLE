@@ -1,0 +1,8 @@
+{
+  "consumer_key": "your_consumer_key_here",
+  "consumer_secret": "your_consumer_secret_here",
+  "access_token": "your_access_token_here",
+  "access_secret": "your_access_secret_here",
+  "owner": "owner_name",
+  "owner_id": "your_owner_id"
+}
