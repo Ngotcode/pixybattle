@@ -1,4 +1,5 @@
 pytest
 matplotlib
 enum34
+numpy
 tweepy
