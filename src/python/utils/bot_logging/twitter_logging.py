@@ -153,7 +153,7 @@ class Tweeter(object):
         """
         if self._permit(p):
             msg = self._pick_canned_tweet(situation)
-            self.api.update(msg)
+            self.api.update_status(msg)
             return True
         return False
 
