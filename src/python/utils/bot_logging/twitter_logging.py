@@ -73,18 +73,19 @@ class Tweeter(object):
         self.default_prob = default_prob
         self.random = random.Random(seed)
 
-        if self.api is None:
-            if api is None:
-                try:
-                    with open(CREDENTIALS_PATH) as f:
-                        cred = json.load(f)
+        if api is not None:
+            self.api = api
+        elif self.api is None:
+            try:
+                with open(CREDENTIALS_PATH) as f:
+                    cred = json.load(f)
 
-                    auth = tweepy.OAuthHandler(cred['consumer_key'], cred['consumer_secret'])
-                    auth.set_access_token(cred['access_token'], cred['access_secret'])
+                auth = tweepy.OAuthHandler(cred['consumer_key'], cred['consumer_secret'])
+                auth.set_access_token(cred['access_token'], cred['access_secret'])
 
-                    api = tweepy.API(auth)
-                except IOError:
-                    logger.warn('API credentials not found at {}. Tweets will not be submitted.'.format(CREDENTIALS_PATH))
+                api = tweepy.API(auth)
+            except IOError:
+                logger.warn('API credentials not found at {}. Tweets will not be submitted.'.format(CREDENTIALS_PATH))
             type(self).api = api
 
     def _pick_canned_tweet(self, situation):
@@ -110,7 +111,7 @@ class Tweeter(object):
         if self.api is None:
             logger.debug('No twitter API available, tweet will not be submitted.')
             return False
-        is_permitted = self.random.random() <= (p if p is None else self.default_prob)
+        is_permitted = self.random.random() <= (p if p is not None else self.default_prob)
         logger.debug('Tweeting' if is_permitted else 'Not tweeting (randomly)')
         return is_permitted
 
