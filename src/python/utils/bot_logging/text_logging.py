@@ -21,6 +21,18 @@ class TimerFormatter(logging.Formatter):
         return levelname.rjust(8)
 
 
+# from https://stackoverflow.com/a/13638084/2700168
+FIRING_LOG = 5
+logging.addLevelName(FIRING_LOG, "FIRING_LOG")
+
+
+def firing_log(self, message, *args, **kwargs):
+    # Yes, logger takes its '*args' as 'args'.
+    if self.isEnabledFor(FIRING_LOG):
+        self._log(FIRING_LOG, message, args, **kwargs)
+
+logging.Logger.firing_log = firing_log
+
 root_logger = logging.getLogger()
 
 if not os.path.isdir(LOG_DIR):
