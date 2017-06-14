@@ -2,7 +2,4 @@ pytest
 matplotlib
 enum34
 numpy
-<<<<<<< HEAD
-=======
 tweepy
->>>>>>> master
