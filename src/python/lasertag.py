@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-
+from utils.vision import PixyBlock
 from utils.scan_scene import scan_scene
 import time
-# import sys
+import sys
 import signal
-# import ctypes
+import ctypes
 import math
 import serial
 import numpy as np
@@ -12,6 +12,7 @@ from datetime import datetime
 from pixy import pixy
 from pololu_drv8835_rpi import motors
 from utils.robot_state import RobotState
+from utils.constants import SIG_BOUNDARY1
 import search
 from utils.shooting import LaserController
 import logging
@@ -59,41 +60,9 @@ run_flag = 1
 dt = 20
 # check timeout dt*3
 timeout = 0.5
-# current_time = datetime.now()
-# last_time = datetime.now()
-# last_fire = last_time
-
-# # defining motor function variables
-# # 5% drive is deadband
-# deadband = 0.05 * MAX_MOTOR_SPEED
-# # total_drive is the total power available
-# total_drive = MAX_MOTOR_SPEED
-# # throttle is how much of the total_drive to use [0~1]
-# throttle = 0
-# # differential drive level [0~1]
-# diff_drive = 0
-# # this is the gain for scaling diff_drive
-# diff_gain = 1
-# # this ratio determines the steering [-1~1]
-# bias = 0
-# # this ratio determines the drive direction and magnitude [-1~1]
-# advance = 0
-# # this gain currently modulates the forward drive enhancement
-# drive_gain = 1
-# # body turning p-gain
-# h_pgain = 0.5
-# # body turning d-gain
-# h_dgain = 0
-
-# defining state estimation variables
-# pixyViewV = 47
-# pixyViewH = 75
-# pixyImgV = 400
-# pixyImgH = 640
-# pixel to visual angle conversion factor (only rough approximation)
 # (pixyViewV/pixyImgV + pixyViewH/pixyImgH) / 2
 pix2ang_factor = 0.117
-# reference object one is the pink earplug (~12mm wide)
+# reference object one
 ref_size1 = 100
 # reference object two is side post (~50mm tall)
 ref_size2 = 50
@@ -105,6 +74,7 @@ target_dist = 1
 ref_dist = 400
 
 blocks = None
+do_pan = 1
 
 def handle_SIGINT(sig, frame):
     """
@@ -116,20 +86,20 @@ def handle_SIGINT(sig, frame):
     run_flag = False
 
 
-# class Blocks(ctypes.Structure):
-#     """
-#     Block structure for use with getting blocks from
-#     pixy.get_blocks()
-#     """
-#     _fields_ = [
-#         ("type", ctypes.c_uint),
-#         ("signature", ctypes.c_uint),
-#         ("x", ctypes.c_uint),
-#         ("y", ctypes.c_uint),
-#         ("width", ctypes.c_uint),
-#         ("height", ctypes.c_uint),
-#         ("angle", ctypes.c_uint)
-#     ]
+class Blocks(ctypes.Structure):
+    """
+    Block structure for use with getting blocks from
+    pixy.get_blocks()
+    """
+    _fields_ = [
+        ("type", ctypes.c_uint),
+        ("signature", ctypes.c_uint),
+        ("x", ctypes.c_uint),
+        ("y", ctypes.c_uint),
+        ("width", ctypes.c_uint),
+        ("height", ctypes.c_uint),
+        ("angle", ctypes.c_uint)
+    ]
 
 
 class ServoLoop(object):
@@ -175,6 +145,12 @@ def setup():
     robot_state = RobotState(blocks, datetime.now(), MAX_MOTOR_SPEED)
     return robot_state
 
+# killed = False
+
+def compute_dist_error(block):
+    object_dist = ref_size1 / (2 * math.tan(math.radians(block.height * pix2ang_factor)))
+    dist_error = object_dist - target_dist
+    return dist_error
 
 def bias_computation(robot_state, dt, pan_loop):
     # should be still int32_t
@@ -192,12 +168,10 @@ def logit(x, k, x0):
 
 def drive_toward_block(robot_state, block):
     pan_error = PIXY_X_CENTER - block.x
-    # object_dist = ref_size1 / (2 * math.tan(math.radians(block.width * pix2ang_factor)))
-    object_dist = ref_size1 / (2 * math.tan(math.radians(block.height * pix2ang_factor)))
     robot_state.throttle = 0.5
     # amount of steering depends on how much deviation is there
     robot_state.diff_drive = abs(float(pan_error) / 300+.4)
-    dist_error = object_dist - target_dist
+    dist_error = compute_dist_error(block)
     # this is in float format with sign indicating advancing or retreating
     robot_state.advance = logit(dist_error, .025, 400)
     # float(dist_error) / ref_dist
@@ -210,62 +184,77 @@ def loop(robot_state):
     Main loop, Gets blocks from pixy, analyzes target location,
     chooses action for robot and sends instruction to motors
     """
+    
     if ser.in_waiting:
         print("Reading line from serial..")
         code = ser.readline().rstrip()
         print("Got IR code {}".format(code))
         robot_state.killed = True
-        # if code=="58391E4E" or code=="9DF14DB3" or code=="68B92":
-        #    killed = True
-        #
-        # if code=="E4F74E5A" or code=="A8FA9FFD":
-        #    killed = False
 
     if robot_state.killed:
         print "I'm hit!"
-        # motors.setSpeeds(0, 0)
-        # time.sleep(5)
-
+        
     robot_state.current_time = datetime.now()
+
     # If no new blocks, don't do anything
     while not pixy.pixy_blocks_are_new() and run_flag:
+        # print PixyBlock.from_pixy(), 'test'
         pass
+    # while pixy.pixy_blocks_are_new()  and run_flag:
+    #     pass
+    
     count = 0
     if robot_state.state == "search":
-        block = search.simple_search(robot_state, motors)
-        if block is not None:
-            count = 1
-            robot_state.state = "chase"
-            print "from search to chase"
-            print block
+        ## /!\ WE MIGHT WANT TO ROTATE FIRST /!\
+        
+        ## Look for Enemy target; if found go to chase state, else turn
+        block = scan_scene("chase")
+        if time.time() - robot_state.search_starting_time >= robot_state.min_turning_time:
+            if block is not None:
+                robot_state.state = "chase"
+                print 'search to chase'
+            else:
+            ## If enough turn for enough time go to roam state
+                if time.time() - robot_state.search_starting_time > robot_state.max_turning_time:
+                    robot_state.state = "roam"
+                    print 'search to roam'
+                else:
+                    motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
+                                     int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
         else:
-            robot_state.state = "roam"
-            print block
-            print "from search to roam"
-    if robot_state.state == "chase":
-        block = scan_scene(robot_state.state)
+            motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
+                             int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
+    
+    elif robot_state.state == "chase":
+        ## Look for Enemy target; if none found go to roam state
+        block = scan_scene("chase")
         if block is None:
-            count = 0
+            print block
             robot_state.state = "roam"
-            print "from chase to roam"
-            return run_flag
-        else:
-            count = 1
-
-        if count > 0:
+            print "chase to roam"
+        else: # count > 0:
             pan_error = drive_toward_block(robot_state, block)
             pan_loop.update(pan_error)
-        # Update pixy's pan position
-        pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_loop.m_pos)
-        # if Pixy sees nothing recognizable, don't move.
-        time_difference = robot_state.current_time - robot_state.previous_time
-        if time_difference.total_seconds() >= timeout:
-            throttle = 0.0
-            diff_drive = 1
-        dt = (robot_state.current_time - robot_state.previous_time).total_seconds()
-        bias_computation(robot_state, dt, pan_loop)
-        robot_state.previous_time = robot_state.current_time
-        l_drive, r_drive = drive(robot_state)
+
+            # Update pixy's pan position
+            pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, pan_loop.m_pos)
+
+            # if Pixy sees nothing recognizable, don't move.
+            time_difference = robot_state.current_time - robot_state.previous_time
+            if time_difference.total_seconds() >= timeout:
+                throttle = 0.0
+                diff_drive = 1
+
+            dt = (robot_state.current_time - robot_state.previous_time).total_seconds()
+            bias_computation(robot_state, dt, pan_loop)
+            robot_state.previous_time = robot_state.current_time
+            l_drive, r_drive = drive(robot_state)
+            if robot_state.advance < .5:
+                robot_state.switch_to_search()
+                motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
+                                 int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
+                print 'chase to search'
+
     elif robot_state.state == "roam":
         # First, see if there is a shootable target
         block = scan_scene("chase")
@@ -276,24 +265,23 @@ def loop(robot_state):
         else:
             # else, we are still in roam mode
             block = scan_scene("roam")
-            # if block is too big
-            # then switch "search"
-            robot_state.throttle = 0.5
-            robot_state.diff_drive = 0 #abs(float(pan_error) / 300+.4)
-
-            if not block is None:
-                # print 'hello', block.width
-                object_dist = ref_size1 / (2 * math.tan(math.radians(block.height * pix2ang_factor)))
-                dist_error = object_dist - target_dist
-                robot_state.advance = logit(dist_error, .025, 400)
-                if robot_state.advance < .05:
-                    robot_state.state = "search"
-                    print 'roam to search'
-                    # return run_flag
-                    robot_state.advance = 0
-                l_drive, r_drive = drive(robot_state)
+            if block is not None:
+                if block.signature != SIG_BOUNDARY1:
+                    dist_error = compute_dist_error(block)
+                    robot_state.throttle = 0.8
+                    robot_state.diff_drive = 0 #abs(float(pan_error) / 300+.4)
+                    robot_state.advance = logit(dist_error, .025, 400)
+                    if robot_state.advance < .05:
+                        robot_state.switch_to_search()
+                        print 'roam to search'
+                    else:
+                        l_drive, r_drive = drive(robot_state)
+                else:
+                    robot_state.switch_to_search()
+                    motors.setSpeeds(0, 0)
+                    print 'roam to search from wall'
             else:
-                robot_state.advance = .75
+                robot_state.advance = .9
                 l_drive, r_drive = drive(robot_state)
     return run_flag
 
@@ -335,11 +323,12 @@ def drive(robot_state):
 if __name__ == '__main__':
     logging.getLogger("utils.shooting").setLevel(logging.WARNING)
     try:
-        # pixy.pixy_cam_set_brightness(20)
+        pixy.pixy_cam_set_brightness(20)
         robot_state = setup()
         with LaserController() as controller:
             controller.fire_at_will()
             while True:
+                pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 500)
                 ok = loop(robot_state)
                 if not ok:
                     break

@@ -1,5 +1,17 @@
+from random import random
+from utils.constants import MAX_TIME_TURN
+from time import time
+
 class RobotState(object):
     """docstring for robot_state"""
+    def switch_to_search(self):
+        self.state = "search"
+        self.turn_direction = 1 if random() <.5 else -1
+        self.max_turning_time = MAX_TIME_TURN/4. + random() * 3/4. * MAX_TIME_TURN
+        self.min_turning_time = MAX_TIME_TURN/4.
+        self.advance = 0
+        self.search_starting_time = time()
+    
     def __init__(self, blocks, current_time, total_drive):
         self.blocks = blocks
         self.throttle = 0
@@ -27,3 +39,4 @@ class RobotState(object):
         self.previous_time = current_time
         self.deadband = 0.05 * total_drive
         self.state = "search"
+        self.switch_to_search()
