@@ -1,25 +1,32 @@
 #!/usr/bin/env python
-from utils.vision import PixyBlock
-from utils.scan_scene import scan_scene
 import time
 import sys
 import signal
 import ctypes
 import math
+from datetime import datetime
+import logging
+from argparse import ArgumentParser
+
 import serial
 import numpy as np
-from datetime import datetime
-from pixy import pixy
+
 from pololu_drv8835_rpi import motors
-from utils.robot_state import RobotState
-from utils.constants import SIG_BOUNDARY1
+from pixy import pixy
+
 import search
+from utils.robot_state import RobotState
+from utils.constants import SIG_BOUNDARY1, DEFAULT_LOG_LEVEL
+from utils.bot_logging import set_log_level, Tweeter, ImageLogger
 from utils.shooting import LaserController
-import logging
+from utils.scan_scene import scan_scene
+from utils.vision import PixyBlock
 
 serial_device = '/dev/ttyACM0'
 baudRate = 9600
 
+tweeter = Tweeter()
+image_logger = ImageLogger(__name__)
 
 while True:
     try:
@@ -184,7 +191,7 @@ def loop(robot_state):
     Main loop, Gets blocks from pixy, analyzes target location,
     chooses action for robot and sends instruction to motors
     """
-    
+
     if ser.in_waiting:
         print("Reading line from serial..")
         code = ser.readline().rstrip()
@@ -193,7 +200,7 @@ def loop(robot_state):
 
     if robot_state.killed:
         print "I'm hit!"
-        
+
     robot_state.current_time = datetime.now()
 
     # If no new blocks, don't do anything
@@ -202,11 +209,11 @@ def loop(robot_state):
         pass
     # while pixy.pixy_blocks_are_new()  and run_flag:
     #     pass
-    
+
     count = 0
     if robot_state.state == "search":
         ## /!\ WE MIGHT WANT TO ROTATE FIRST /!\
-        
+
         ## Look for Enemy target; if found go to chase state, else turn
         block = scan_scene("chase")
         if time.time() - robot_state.search_starting_time >= robot_state.min_turning_time:
@@ -224,7 +231,7 @@ def loop(robot_state):
         else:
             motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
                              int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
-    
+
     elif robot_state.state == "chase":
         ## Look for Enemy target; if none found go to roam state
         block = scan_scene("chase")
@@ -321,14 +328,34 @@ def drive(robot_state):
     return int(l_drive), int(r_drive)
 
 if __name__ == '__main__':
-    logging.getLogger("utils.shooting").setLevel(logging.WARNING)
+    set_log_level(DEFAULT_LOG_LEVEL)
+    parser = ArgumentParser(description='Start the robot in laser death mode!')
+    parser.add_argument(
+        '--skip-prewarm', '-s', action='store_true', default=False,
+        help="Go straight from the prewarm into the robot behaving, rather than waiting for user input."
+    )
+    parser.add_argument(
+        '--verbosity', '-v', action='count', default=0,
+        help='Increase verbosity of command line logging (1 for info, 2 for debug, 3 for everything)'
+    )
+
+    parsed_args = parser.parse_args()
+
+    if parsed_args.verbosity >= 3:
+        set_log_level(logging.NOTSET)
+    elif parsed_args.verbosity == 2:
+        set_log_level(logging.DEBUG)
+    elif parsed_args.verbosity == 1:
+        set_log_level(logging.INFO)
+
     try:
-        pixy.pixy_cam_set_brightness(20)
+        # pixy.pixy_cam_set_brightness(20)
         robot_state = setup()
         with LaserController() as controller:
+            if not parsed_args.skip_prewarm:
+                input('Press enter to GO!')
             controller.fire_at_will()
             while True:
-                pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 500)
                 ok = loop(robot_state)
                 if not ok:
                     break
