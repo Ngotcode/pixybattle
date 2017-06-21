@@ -1,25 +1,29 @@
 #!/usr/bin/env python
-from utils.vision import PixyBlock
-from utils.scan_scene import scan_scene
 import time
 import sys
 import signal
 import ctypes
 import math
+from datetime import datetime
+import logging
+from argparse import ArgumentParser
 import serial
 import numpy as np
-from datetime import datetime
-from pixy import pixy
 from pololu_drv8835_rpi import motors
-from utils.robot_state import RobotState
-from utils.constants import SIG_BOUNDARY1
+from pixy import pixy
 import search
+from utils.robot_state import RobotState
+from utils.constants import *  #  SIG_BOUNDARY1, DEFAULT_LOG_LEVEL
+from utils.bot_logging import set_log_level, Tweeter, ImageLogger
 from utils.shooting import LaserController
-import logging
+from utils.scan_scene import scan_scene
+from utils.vision import PixyBlock
 
 serial_device = '/dev/ttyACM0'
 baudRate = 9600
 
+tweeter = Tweeter()
+image_logger = ImageLogger(__name__)
 
 while True:
     try:
@@ -132,6 +136,8 @@ def setup():
     """
     One time setup. Inialize pixy and set sigint handler
     """
+    tweeter = Tweeter()
+    tweeter.tweet_canned(Situation.STARTING_UP, TWEET_DEFAULT_PROB)
     # global blocks
     pixy_init_status = pixy.pixy_init()
     if pixy_init_status != 0:
@@ -184,7 +190,8 @@ def loop(robot_state):
     Main loop, Gets blocks from pixy, analyzes target location,
     chooses action for robot and sends instruction to motors
     """
-    
+
+    tweeter = Tweeter()
     if ser.in_waiting:
         print("Reading line from serial..")
         code = ser.readline().rstrip()
@@ -193,7 +200,8 @@ def loop(robot_state):
 
     if robot_state.killed:
         print "I'm hit!"
-        
+        tweeter.tweet_canned(Situation.RECEIVED_HIT, TWEET_HIT_PROB)
+
     robot_state.current_time = datetime.now()
 
     # If no new blocks, don't do anything
@@ -202,29 +210,32 @@ def loop(robot_state):
         pass
     # while pixy.pixy_blocks_are_new()  and run_flag:
     #     pass
-    
+
     count = 0
     if robot_state.state == "search":
         ## /!\ WE MIGHT WANT TO ROTATE FIRST /!\
-        
+
         ## Look for Enemy target; if found go to chase state, else turn
         block = scan_scene("chase")
         if time.time() - robot_state.search_starting_time >= robot_state.min_turning_time:
             if block is not None:
                 robot_state.state = "chase"
                 print 'search to chase'
+                tweeter.tweet_canned(Situation.CHASE, TWEET_CHASE_PROB)
+
             else:
             ## If enough turn for enough time go to roam state
                 if time.time() - robot_state.search_starting_time > robot_state.max_turning_time:
                     robot_state.state = "roam"
                     print 'search to roam'
+                    tweeter.tweet_canned(Situation.RANDOM, TWEET_ROAM_PROB)
                 else:
                     motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
                                      int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
         else:
             motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
                              int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
-    
+
     elif robot_state.state == "chase":
         ## Look for Enemy target; if none found go to roam state
         block = scan_scene("chase")
@@ -232,6 +243,7 @@ def loop(robot_state):
             print block
             robot_state.state = "roam"
             print "chase to roam"
+            tweeter.tweet_canned(Situation.RANDOM, TWEET_ROAM_PROB)
         else: # count > 0:
             pan_error = drive_toward_block(robot_state, block)
             pan_loop.update(pan_error)
@@ -254,6 +266,7 @@ def loop(robot_state):
                 motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
                                  int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
                 print 'chase to search'
+                tweeter.tweet_canned(Situation.SEARCH, TWEET_SEARCH_PROB)
 
     elif robot_state.state == "roam":
         # First, see if there is a shootable target
@@ -261,6 +274,7 @@ def loop(robot_state):
         if block is not None:
             robot_state.state = "chase"
             print 'roam to chase'
+            tweeter.tweet_canned(Situation.CHASE, TWEET_CHASE_PROB)
             # return run_flag
         else:
             # else, we are still in roam mode
@@ -274,12 +288,14 @@ def loop(robot_state):
                     if robot_state.advance < .05:
                         robot_state.switch_to_search()
                         print 'roam to search'
+                        tweeter.tweet_canned(Situation.SEARCH, TWEET_SEARCH_PROB)
                     else:
                         l_drive, r_drive = drive(robot_state)
                 else:
                     robot_state.switch_to_search()
                     motors.setSpeeds(0, 0)
                     print 'roam to search from wall'
+                    tweeter.tweet_canned(Situation.WALL, TWEET_WALL_PROB)
             else:
                 robot_state.advance = .7
                 l_drive, r_drive = drive(robot_state)
@@ -321,14 +337,34 @@ def drive(robot_state):
     return int(l_drive), int(r_drive)
 
 if __name__ == '__main__':
-    logging.getLogger("utils.shooting").setLevel(logging.WARNING)
+    set_log_level(DEFAULT_LOG_LEVEL)
+    parser = ArgumentParser(description='Start the robot in laser death mode!')
+    parser.add_argument(
+        '--skip-prewarm', '-s', action='store_true', default=False,
+        help="Go straight from the prewarm into the robot behaving, rather than waiting for user input."
+    )
+    parser.add_argument(
+        '--verbosity', '-v', action='count', default=0,
+        help='Increase verbosity of command line logging (1 for info, 2 for debug, 3 for everything)'
+    )
+
+    parsed_args = parser.parse_args()
+
+    if parsed_args.verbosity >= 3:
+        set_log_level(logging.NOTSET)
+    elif parsed_args.verbosity == 2:
+        set_log_level(logging.DEBUG)
+    elif parsed_args.verbosity == 1:
+        set_log_level(logging.INFO)
+
     try:
-        pixy.pixy_cam_set_brightness(20)
+        # pixy.pixy_cam_set_brightness(20)
         robot_state = setup()
         with LaserController() as controller:
+            if not parsed_args.skip_prewarm:
+                input('Press enter to GO!')
             controller.fire_at_will()
             while True:
-                pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, 500)
                 ok = loop(robot_state)
                 if not ok:
                     break

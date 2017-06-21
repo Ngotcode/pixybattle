@@ -43,7 +43,8 @@ import logging
 import time
 import datetime
 
-from utils.constants import LASER_COOLDOWN, RECOVERY, PixySerial
+from utils.constants import LASER_COOLDOWN, RECOVERY, PixySerial, Situation
+from utils.bot_logging import Tweeter
 
 # year, month, day, hour, second, microsecond
 EPOCH_TUPLE = (datetime.MINYEAR, 1, 1, 0, 0, 0, 0)
@@ -64,6 +65,7 @@ class LaserController(object):
         self.interface = LaserInterface()
         self.laser_process = LaserProcess(self.interface)
         self.logger = logging.getLogger('{}.{}'.format(__name__, type(self).__name__))
+        self.tweeter = Tweeter()
 
     def start(self):
         """Start the underlying WeaponsSystem process; blocks until laser is ready"""
@@ -85,7 +87,10 @@ class LaserController(object):
     @property
     def is_disabled(self):
         """Whether the laser is currently disabled by being hit"""
-        return self.interface.is_disabled
+        is_disabled = self.interface.is_disabled
+        if is_disabled:
+            self.tweeter.tweet_canned(Situation.RECEIVED_HIT, p=1.0)
+        return is_disabled
 
     def fire_multiple(self, shots=1, timeout_per_shot=None):
         """
@@ -147,6 +152,7 @@ class LaserController(object):
         if block:
             result = self.fire_once(timeout)
         self.interface.firing = True
+        self.tweeter.tweet_canned(Situation.LASER_FIRING, p=0.01)
         return result
 
     def hold_fire(self):

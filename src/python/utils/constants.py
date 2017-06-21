@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '../../..'))
 # assert os.path.split(ROOT_DIR)[-1] == 'pixybattle'  # make sure the relative path works
 
+# LOGGING
+
+DEFAULT_LOG_LEVEL = logging.DEBUG
+
 # defining PixyCam sensory variables
 PIXY_MIN_X = 0
 PIXY_MAX_X = 319
@@ -60,7 +64,13 @@ MAX_Y_WALL = 75
 
 # TWEETING
 
-TWEET_DEFAULT_PROB = 1
+TWEET_DEFAULT_PROB = 1.0
+TWEET_HIT_PROB = 1.0
+TWEET_FIRE_PROB = 1.0
+TWEET_SEARCH_PROB = 1.0
+TWEET_CHASE_PROB = 1.0
+TWEET_ROAM_PROB = 1.0
+TWEET_WALK_PROB = 1.0
 
 
 class Situation(Enum):
@@ -68,9 +78,11 @@ class Situation(Enum):
     STARTING_UP = 'starting_up.txt'
     LASER_FIRING = 'laser_firing.txt'
     RECEIVED_HIT = 'received_hit.txt'
-    MOVING = 'moving.txt'
     SHUTTING_DOWN = 'shutting_down.txt'
     RANDOM = 'random.txt'
+    SEARCH = 'search.txt'
+    CHASE = 'chase.txt'
+    WALL = 'wall.txt'
 
 
 # todo: may not be necessary
