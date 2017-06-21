@@ -77,6 +77,7 @@ class Situation(Enum):
     RANDOM = 'random.txt'
     SEARCH = 'search.txt'
     CHASE = 'chase.txt'
+    WALL = 'wall.txt'
 
 
 # todo: may not be necessary
