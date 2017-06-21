@@ -1,4 +1,4 @@
-[start_up] *Windows 95 startup noise*
-[start_up] https://media.giphy.com/media/rlsHtd2YC8k0g/giphy.gif
-[start_up] https://media.giphy.com/media/vusDfI9BfkwY8/giphy.gif
-[start_up] https://media.giphy.com/media/xT9DPr4VjeCgeiLoMo/giphy.gif
+*Windows 95 startup noise*
+https://media.giphy.com/media/rlsHtd2YC8k0g/giphy.gif
+https://media.giphy.com/media/vusDfI9BfkwY8/giphy.gif
+https://media.giphy.com/media/xT9DPr4VjeCgeiLoMo/giphy.gif
