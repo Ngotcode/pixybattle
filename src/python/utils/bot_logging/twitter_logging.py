@@ -154,7 +154,10 @@ class Tweeter(object):
         """
         if self._permit(p):
             msg = self._pick_canned_tweet(situation)
-            self.api.update_status(msg)
+            try:
+                self.api.update_status(msg)
+            except tweepy.error.TweepError:
+                pass
             return True
         return False
 
