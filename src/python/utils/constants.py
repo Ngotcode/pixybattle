@@ -73,9 +73,10 @@ class Situation(Enum):
     STARTING_UP = 'starting_up.txt'
     LASER_FIRING = 'laser_firing.txt'
     RECEIVED_HIT = 'received_hit.txt'
-    MOVING = 'moving.txt'
     SHUTTING_DOWN = 'shutting_down.txt'
     RANDOM = 'random.txt'
+    SEARCH = 'search.txt'
+    CHASE = 'chase.txt'
 
 
 # todo: may not be necessary
