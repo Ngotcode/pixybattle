@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '../../..'))
 # assert os.path.split(ROOT_DIR)[-1] == 'pixybattle'  # make sure the relative path works
 
+# LOGGING
+
+DEFAULT_LOG_LEVEL = logging.DEBUG
+
 # defining PixyCam sensory variables
 PIXY_MIN_X = 0
 PIXY_MAX_X = 319
