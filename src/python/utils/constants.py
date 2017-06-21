@@ -55,7 +55,7 @@ TARGET_WEIGHT_MATRIX = [10., 1., 0., 0., 10.]
 LASER_COOLDOWN = 1  # seconds
 RECOVERY = 5  # time it takes for laser to reactivate after being hit, in seconds
 
-MAX_TIME_TURN = 3
+MAX_TIME_TURN = 2.
 MAX_Y_WALL = 75
 
 # TWEETING

@@ -83,11 +83,11 @@ def scan_scene(do_pan):
     elif do_pan == "chase":
     # if do_pan in ["search", "chase"]:
         blocks = PixyBlock.from_pixy()
-        for b in blocks:
-            if True:#b.signature == SIGNATURE_LIST[0] or b.signature == SIGNATURE_LIST[1]:
-                tar_block = b
-                break                
-        #tar_block, _ = find_max_block_in_scene(blocks, SIGNATURE_LIST, TARGET_WEIGHT_MATRIX)
+        # for b in blocks:
+        #     if True:#b.signature == SIGNATURE_LIST[0] or b.signature == SIGNATURE_LIST[1]:
+        #         tar_block = b
+        #         break                
+        tar_block, _ = find_max_block_in_scene(blocks, SIGNATURE_LIST, TARGET_WEIGHT_MATRIX)
     elif do_pan == "roam":
         blocks = PixyBlock.from_pixy()
         wall_block = None

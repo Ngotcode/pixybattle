@@ -281,7 +281,7 @@ def loop(robot_state):
                     motors.setSpeeds(0, 0)
                     print 'roam to search from wall'
             else:
-                robot_state.advance = .9
+                robot_state.advance = .7
                 l_drive, r_drive = drive(robot_state)
     return run_flag
 
