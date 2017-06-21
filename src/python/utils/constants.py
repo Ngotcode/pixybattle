@@ -76,7 +76,6 @@ class Situation(Enum):
     MOVING = 'moving.txt'
     SHUTTING_DOWN = 'shutting_down.txt'
     RANDOM = 'random.txt'
-    CHASE = 'chase.txt'
 
 
 # todo: may not be necessary
