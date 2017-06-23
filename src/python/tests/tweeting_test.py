@@ -61,7 +61,7 @@ def check_image_paths(tweeter):
 def tweeter(request):
     api = DummyTweepyApi(os.path.join(OUTPUT_DIR, request.function.__name__))
     tweeter_obj = Tweeter(default_prob=NORMAL_TWEET_PROB, seed=SEED, api=api)
-    logger.debug('Tweeter created with api path at {}'.format(tweeter.api.path))
+    logger.debug('Tweeter created with api path at {}'.format(tweeter_obj.api.path))
     return tweeter_obj
 
 
