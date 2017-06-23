@@ -1,3 +1,5 @@
-[laser_firing] Arm proton torpedos, it's time to bullseye some womp rats.
-[laser_firing] PEW PEW
-[laser_firing] http://pa1.narvii.com/6237/9cbd633c52157516015bf47df2488e4ef380301e_hq.gif
+[
+  {"type": "text", "msg": "Arm proton torpedos, it's time to bullseye some womp rats."},
+  {"type": "text", "msg": "PEW PEW"},
+  {"path": "media/super_battle_droid.gif"}
+]
