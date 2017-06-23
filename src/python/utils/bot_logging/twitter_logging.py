@@ -39,10 +39,12 @@ import json
 import logging
 from io import BytesIO
 import random
+from datetime import datetime
+import shutil
 
 import tweepy
 
-from utils.constants import ROOT_DIR, TWEET_DEFAULT_PROB, Situation
+from utils.constants import ROOT_DIR, TWEET_DEFAULT_PROB, Situation, STARTED
 from utils.bot_logging.image_logging import ImageCreator
 
 logger = logging.getLogger(__name__)
@@ -52,6 +54,11 @@ for logger_name in ['requests', 'requests_oauthlib', 'oauthlib']:
 
 CREDENTIALS_PATH = os.path.join(ROOT_DIR, 'team4_keys.json')
 CANNED_TWEETS_ROOT = os.path.join(ROOT_DIR, 'tweets')
+
+
+def get_timestamp():
+    delta = datetime.now() - STARTED
+    return '{:.2f}: '.format(delta.total_seconds())
 
 
 class Tweeter(object):
@@ -73,6 +80,8 @@ class Tweeter(object):
         self.default_prob = default_prob
         self.random = random.Random(seed)
 
+        self.canned_tweets = self._load_canned_tweets()
+
         if api is not None:
             self.api = api
         elif self.api is None:
@@ -87,6 +96,14 @@ class Tweeter(object):
             except IOError:
                 logger.warn('API credentials not found at {}. Tweets will not be submitted.'.format(CREDENTIALS_PATH))
             type(self).api = api
+
+    def _load_canned_tweets(self):
+        output = dict()
+        for situation in Situation:
+            with open(os.path.join(CANNED_TWEETS_ROOT, situation.value)) as f:
+                output[situation] = json.load(f)
+
+        return output
 
     def _pick_canned_tweet(self, situation):
         """
@@ -131,10 +148,11 @@ class Tweeter(object):
         bool
             Whether the tweet sent
         """
-        if self._permit(p):
-            self.api.update_status(msg)
-            return True
-        return False
+        if not self._permit(p):
+            return False
+
+        self.api.update_status(get_timestamp() + msg)
+        return True
 
     def tweet_canned(self, situation, p=None):
         """
@@ -152,14 +170,23 @@ class Tweeter(object):
         bool
             Whether the tweet sent
         """
-        if self._permit(p):
-            msg = self._pick_canned_tweet(situation)
-            try:
-                self.api.update_status(msg)
-            except tweepy.error.TweepError:
-                pass
-            return True
-        return False
+        if not self._permit(p):
+            return False
+
+        try:
+            selected = random.choice(self.canned_tweets[situation])
+
+            if 'path' in selected:
+                self.api.update_with_media(
+                    os.path.join(CANNED_TWEETS_ROOT, selected['path']), status=get_timestamp() + selected.get('msg', '')
+                )
+            else:
+                self.api.update_status(get_timestamp() + selected.get['msg'])
+
+        except (tweepy.error.TweepError, IndexError, KeyError) as e:
+            logger.exception(str(e))
+            return False
+        return True
 
     def tweet_blocks(self, blocks, p=None, msg='', title=None, **kwargs):
         """
@@ -183,12 +210,56 @@ class Tweeter(object):
         bool
             Whether the tweet sent
         """
-        if self._permit(p):
-            buf = BytesIO(self.image_creator.save_bytes(blocks, title, **kwargs))
-            buf.seek(0)
-            self.api.update_with_media('image.png', status=msg, file=buf)
-            return True
-        return False
+        if not self._permit(p):
+            return False
+
+        buf = BytesIO(self.image_creator.save_bytes(blocks, title, **kwargs))
+        buf.seek(0)
+
+        try:
+            self.api.update_with_media('image.png', status=get_timestamp() + msg, file=buf)
+        except tweepy.error.TweepError as e:
+            logger.exception(str(e))
+            return False
+
+        return True
+
+
+class DummyTweepyApi(object):
+    def __init__(self, output_path_prefix):
+        if output_path_prefix.endswith('/'):
+            output_path_prefix = output_path_prefix[:-1]
+
+        self.path = os.path.join(output_path_prefix + '.txt')
+        self.img_dir = os.path.join(output_path_prefix)
+
+        if not os.path.isdir(self.img_dir):
+            logger.debug('Creating image output dir at {}'.format(self.img_dir))
+            os.makedirs(self.img_dir)
+        with open(self.path, 'w'):
+            logger.debug('Creating output file at {}'.format(self.path))
+        self.img_count = 1
+
+    def update_status(self, msg):
+        with open(self.path, 'a') as f:
+            logger.debug('Twitter API updating status with "{}" to {}'.format(msg, self.path))
+            f.write(msg + '\n')
+
+    def update_with_media(self, path, status='', file=None):
+        output_path = os.path.join(self.img_dir, '{}.png'.format(self.img_count))
+        with open(self.path, 'a') as f:
+            logger.debug(
+                'Twitter API updating status with {} and image to {}'.format(status, output_path, self.path)
+            )
+            f.write(status + '|{}\n'.format(output_path))
+
+        if file:
+            with open(output_path, 'wb') as f:
+                logger.debug('Twitter API creating image at {}'.format(output_path))
+                f.write(file.read())
+        else:
+            logger.debug('Twitter API copying image to {}'.format(output_path))
+            shutil.copy(path, output_path)
 
 
 if __name__ == '__main__':
