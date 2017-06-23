@@ -1,6 +1,7 @@
 import os
 import time
 import logging
+from datetime import datetime
 
 from enum import Enum
 import serial
@@ -14,6 +15,8 @@ ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '../../..'))
 # assert os.path.split(ROOT_DIR)[-1] == 'pixybattle'  # make sure the relative path works
 
 # LOGGING
+
+STARTED = datetime.now()
 
 DEFAULT_LOG_LEVEL = logging.DEBUG
 
@@ -75,14 +78,14 @@ TWEET_WALK_PROB = 1.0
 
 class Situation(Enum):
     """Enumerate the possible situations for which there are canned tweets available."""
-    STARTING_UP = 'starting_up.txt'
-    LASER_FIRING = 'laser_firing.txt'
-    RECEIVED_HIT = 'received_hit.txt'
-    SHUTTING_DOWN = 'shutting_down.txt'
-    RANDOM = 'random.txt'
-    SEARCH = 'search.txt'
-    CHASE = 'chase.txt'
-    WALL = 'wall.txt'
+    STARTING_UP = 'starting_up.json'
+    LASER_FIRING = 'laser_firing.json'
+    RECEIVED_HIT = 'received_hit.json'
+    SHUTTING_DOWN = 'shutting_down.json'
+    RANDOM = 'random.json'
+    SEARCH = 'search.json'
+    CHASE = 'chase.json'
+    WALL = 'wall.json'
 
 
 # todo: may not be necessary
