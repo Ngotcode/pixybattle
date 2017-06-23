@@ -5,7 +5,7 @@ from collections import namedtuple
 
 import pytest
 
-from utils.bot_logging import Tweeter
+from utils.bot_logging import Tweeter, DummyTweepyApi
 from utils.constants import Situation
 
 
@@ -45,35 +45,6 @@ def teardown_module():
         empty_output_dir()
 
 
-class DummyApi(object):
-    def __init__(self, test_name):
-        self.path = os.path.join(OUTPUT_DIR, test_name + '.txt')
-        self.img_dir = os.path.join(OUTPUT_DIR, test_name)
-        if not os.path.isdir(self.img_dir):
-            logger.debug('Creating image output dir at {}'.format(self.img_dir))
-            os.makedirs(self.img_dir)
-        with open(self.path, 'w'):
-            logger.debug('Creating output file at {}'.format(self.path))
-        self.img_count = 1
-
-    def update_status(self, msg):
-        with open(self.path, 'a') as f:
-            logger.debug('Twitter API updating status with "{}" to {}'.format(msg, self.path))
-            f.write(msg + '\n')
-
-    def update_with_media(self, path, status='', file=None):
-        output_path = os.path.join(self.img_dir, '{}.png'.format(self.img_count))
-        with open(self.path, 'a') as f:
-            logger.debug(
-                'Twitter API updating status with {} and image to {}'.format(status, output_path, self.path)
-            )
-            f.write(status + '|{}\n'.format(output_path))
-
-        with open(output_path, 'wb') as f:
-            logger.debug('Twitter API creating image at {}'.format(output_path))
-            f.write(file.read())
-
-
 def read_statuses(tweeter):
     with open(tweeter.api.path) as f:
         return f.read().strip().split('\n')
@@ -88,16 +59,16 @@ def check_image_paths(tweeter):
 
 @pytest.fixture
 def tweeter(request):
-    api = DummyApi(request.function.__name__)
-    tweeter = Tweeter(default_prob=NORMAL_TWEET_PROB, seed=SEED, api=api)
+    api = DummyTweepyApi(os.path.join(OUTPUT_DIR, request.function.__name__))
+    tweeter_obj = Tweeter(default_prob=NORMAL_TWEET_PROB, seed=SEED, api=api)
     logger.debug('Tweeter created with api path at {}'.format(tweeter.api.path))
-    return tweeter
+    return tweeter_obj
 
 
 def test_tweets(tweeter):
     tweet_msg = 'this is a message'
     tweeter.tweet(tweet_msg)
-    assert tweet_msg in read_statuses(tweeter)
+    assert read_statuses(tweeter)[0].endswith(tweet_msg)
 
 
 def test_tweets_canned(tweeter):
