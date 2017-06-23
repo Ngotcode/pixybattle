@@ -14,7 +14,7 @@ from pixy import pixy
 import search
 from utils.robot_state import RobotState
 from utils.constants import *  #  SIG_BOUNDARY1, DEFAULT_LOG_LEVEL
-from utils.bot_logging import set_log_level, Tweeter, ImageLogger
+from utils.bot_logging import set_log_level, Tweeter, DummyTweepyApi, ImageLogger, LOG_DIR
 from utils.shooting import LaserController
 from utils.scan_scene import scan_scene
 from utils.vision import PixyBlock
@@ -22,7 +22,6 @@ from utils.vision import PixyBlock
 serial_device = '/dev/ttyACM0'
 baudRate = 9600
 
-tweeter = Tweeter()
 image_logger = ImageLogger(__name__)
 
 while True:
@@ -337,18 +336,27 @@ def drive(robot_state):
     return int(l_drive), int(r_drive)
 
 if __name__ == '__main__':
-    set_log_level(DEFAULT_LOG_LEVEL)
     parser = ArgumentParser(description='Start the robot in laser death mode!')
     parser.add_argument(
         '--skip-prewarm', '-s', action='store_true', default=False,
         help="Go straight from the prewarm into the robot behaving, rather than waiting for user input."
     )
     parser.add_argument(
+        '--debug', '-d', action='store_true', default=False,
+        help='Start in debug mode, setting log level to DEBUG unless verbosity is specified, and tweeting to a file.')
+    parser.add_argument(
         '--verbosity', '-v', action='count', default=0,
-        help='Increase verbosity of command line logging (1 for info, 2 for debug, 3 for everything)'
+        help='Increase verbosity of command line logging (1 for INFO, 2 for DEBUG, 3 for NOTSET). ' +
+             'Default is {}.'.format(logging.getLevelName(DEFAULT_LOG_LEVEL))
     )
 
     parsed_args = parser.parse_args()
+
+    set_log_level(DEFAULT_LOG_LEVEL)
+
+    if parsed_args.debug:
+        set_log_level(logging.DEBUG)
+        Tweeter.api = DummyTweepyApi(os.path.join(LOG_DIR, 'tweets'))
 
     if parsed_args.verbosity >= 3:
         set_log_level(logging.NOTSET)
@@ -361,6 +369,8 @@ if __name__ == '__main__':
         # pixy.pixy_cam_set_brightness(20)
         robot_state = setup()
         with LaserController() as controller:
+            robot_state.laser = controller
+            robot_state.tweeter = Tweeter()
             if not parsed_args.skip_prewarm:
                 input('Press enter to GO!')
             controller.fire_at_will()
