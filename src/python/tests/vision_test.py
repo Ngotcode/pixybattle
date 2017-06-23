@@ -181,7 +181,7 @@ def test_merge_scene():
     scene1 = vision.Scene((block1, block2))
     scene2 = vision.Scene((block3, block4))
 
-    scene3 = scene1.merge(scene2)
+    scene3 = scene1.merge_with(scene2)
 
     assert isinstance(scene3, vision.Scene)
     assert block2 in scene3.blocks
