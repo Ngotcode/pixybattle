@@ -181,7 +181,7 @@ class Tweeter(object):
                     os.path.join(CANNED_TWEETS_ROOT, selected['path']), status=get_timestamp() + selected.get('msg', '')
                 )
             else:
-                self.api.update_status(get_timestamp() + selected.get['msg'])
+                self.api.update_status(get_timestamp() + selected.get('msg', ''))
 
         except (tweepy.error.TweepError, IndexError, KeyError) as e:
             logger.exception(str(e))
@@ -238,15 +238,18 @@ class DummyTweepyApi(object):
             os.makedirs(self.img_dir)
         with open(self.path, 'w'):
             logger.debug('Creating output file at {}'.format(self.path))
-        self.img_count = 1
+        self.img_count = 0
 
     def update_status(self, msg):
         with open(self.path, 'a') as f:
             logger.debug('Twitter API updating status with "{}" to {}'.format(msg, self.path))
             f.write(msg + '\n')
 
-    def update_with_media(self, path, status='', file=None):
-        output_path = os.path.join(self.img_dir, '{}.png'.format(self.img_count))
+    def update_with_media(self, path='image.png', status='', file=None):
+        self.img_count += 1
+        ext = os.path.splitext(path)[1]
+        output_path = os.path.join(self.img_dir, '{}{}'.format(self.img_count, ext))
+
         with open(self.path, 'a') as f:
             logger.debug(
                 'Twitter API updating status with {} and image to {}'.format(status, output_path, self.path)
