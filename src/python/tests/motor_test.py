@@ -1,17 +1,19 @@
 #!/usr/bin/env python
 """
-Test module to prove that the motors are working (i.e. it has battery, the wires are plugged in the right way round 
+THESE TESTS ARE SKIPPED
+
+Test module to prove that the motors are working (i.e. it has battery, the wires are plugged in the right way round
 etc.).
 
 Usage: from the command line, `pytest -s <this_file>`, or just run it as a script.
 
 These tests can run in two modes.
 
-The first mode is for use on the robot: `test_import_*` should pass and the robot should move as described in the log 
+The first mode is for use on the robot: `test_import_*` should pass and the robot should move as described in the log
 (it needs some space to do so).
 
-The second mode is for local testing (basically, proving that the tests themselves are internally consistent). The 
-motor commands are passed to dummy objects which just assert that the arguments look correct. The waits between motor 
+The second mode is for local testing (basically, proving that the tests themselves are internally consistent). The
+motor commands are passed to dummy objects which just assert that the arguments look correct. The waits between motor
 commands are skipped to save time. `test_import_*` should both fail in this mode.
 """
 
@@ -21,6 +23,9 @@ import logging
 from utils.bot_logging import set_log_level
 import pytest
 import time
+
+
+pytestmark = pytest.mark.skip('Motor tests are either useless or annoying')
 
 
 THROTTLE_LEVEL = 0.5
@@ -65,14 +70,14 @@ set_log_level(logging.DEBUG)
 try:
     from pololu_drv8835_rpi import motors
 except:
-    logger.warning('Could not import `motors`, using dummy and bypassing waits')
+    logger.exception('Could not import `motors`, using dummy and bypassing waits')
     MOTOR_WAIT = 0
     motors = DummyMotors()
 
 try:
     from pixy import pixy
 except:
-    logger.warning('Could not import `pixy`, using dummy and bypassing waits')
+    logger.exception('Could not import `pixy`, using dummy and bypassing waits')
     CAMERA_WAIT = 0
     pixy = DummyPixy()
 
@@ -86,7 +91,7 @@ logger.info('Drive level is %d', drive_level)
 def pan_camera(extent):
     """
     Move camera to specified angle as a proportion of its maximum (clockwise from straight forward)
-    
+
     Parameters
     ----------
     extent : float
