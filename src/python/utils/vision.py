@@ -54,6 +54,7 @@ from random import Random
 from copy import copy
 from math import hypot
 import logging
+import sys
 
 import numpy as np
 import networkx as nx
@@ -64,8 +65,13 @@ logger = logging.getLogger(__name__)
 
 try:
     from pixy import pixy
-except ImportError:
-    logger.error('Cannot import pixy. Continuing in case of unit test.')
+except ImportError as e:
+    logger.exception(str(e) + ' Continuing in case of unit test')
+    class pixy:
+        @staticmethod
+        def BlockArray(size):
+            return []
+
 
 SIMILARITY_THRESHOLD = 0.9
 
@@ -237,8 +243,8 @@ class PixyBlock(GenericBlock):
         super(PixyBlock, self).__init__(
             signature, x, y, width, height
         )
-        self.type = type_  # todo: what is this?
-        self.angle = angle  # todo: what is this?
+        self.type = type_
+        self.angle = angle
 
     @classmethod
     def from_ctypes(cls, ctypes_block):
