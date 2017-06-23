@@ -18,7 +18,7 @@ ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '../../..'))
 
 STARTED = datetime.now()
 
-DEFAULT_LOG_LEVEL = logging.DEBUG
+DEFAULT_LOG_LEVEL = logging.INFO
 
 # defining PixyCam sensory variables
 PIXY_MIN_X = 0
