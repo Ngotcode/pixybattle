@@ -135,6 +135,7 @@ def setup():
     """
     One time setup. Inialize pixy and set sigint handler
     """
+    logger.info('Setting up')
     tweeter = Tweeter()
     tweeter.tweet_canned(Situation.STARTING_UP, TWEET_DEFAULT_PROB)
     # global blocks
@@ -337,13 +338,22 @@ def drive(robot_state):
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Start the robot in laser death mode!')
+
     parser.add_argument(
         '--skip-prewarm', '-s', action='store_true', default=False,
         help="Go straight from the prewarm into the robot behaving, rather than waiting for user input."
     )
+
     parser.add_argument(
         '--debug', '-d', action='store_true', default=False,
-        help='Start in debug mode, setting log level to DEBUG unless verbosity is specified, and tweeting to a file.')
+        help='Start in debug mode, setting log level to DEBUG unless verbosity is specified, and tweeting to a file.'
+    )
+
+    parser.add_argument(
+        '--no-test', '-n', action='store_true', default=False,
+        help='Skip unit tests'
+    )
+
     parser.add_argument(
         '--verbosity', '-v', action='count', default=0,
         help='Increase verbosity of command line logging (1 for INFO, 2 for DEBUG, 3 for NOTSET). ' +
@@ -356,7 +366,9 @@ if __name__ == '__main__':
 
     if parsed_args.debug:
         set_log_level(logging.DEBUG)
-        Tweeter.api = DummyTweepyApi(os.path.join(LOG_DIR, 'tweets'))
+        tweet_path = os.path.join(LOG_DIR, 'tweets')
+        logger.info('Entering debug mode (tweets will be saved in %s)', tweet_path)
+        Tweeter.api = DummyTweepyApi(tweet_path)
 
     if parsed_args.verbosity >= 3:
         set_log_level(logging.NOTSET)
@@ -365,14 +377,22 @@ if __name__ == '__main__':
     elif parsed_args.verbosity == 1:
         set_log_level(logging.INFO)
 
+    if not parsed_args.no_test:
+        logger.warning('Running unit tests (use --no-test/-n flag) to skip')
+        import pytest
+        pytest.main()
+
     try:
         # pixy.pixy_cam_set_brightness(20)
         robot_state = setup()
         with LaserController() as controller:
             robot_state.laser = controller
             robot_state.tweeter = Tweeter()
-            if not parsed_args.skip_prewarm:
-                input('Press enter to GO!')
+
+            if parsed_args.debug or not parsed_args.skip_prewarm:
+                input('\n\n\nPress enter to GO!\n\n\n')
+
+            logger.info('Robot starting!')
             controller.fire_at_will()
             while True:
                 ok = loop(robot_state)
