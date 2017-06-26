@@ -1,19 +1,24 @@
 #!/usr/bin/env python
 import time
 import sys
+import os
 import signal
 import ctypes
 import math
 from datetime import datetime
 import logging
 from argparse import ArgumentParser
+
 import serial
 import numpy as np
+
 from pololu_drv8835_rpi import motors
 from pixy import pixy
+
 import search
 from utils.robot_state import RobotState
-from utils.constants import *  #  SIG_BOUNDARY1, DEFAULT_LOG_LEVEL
+from utils import constants  #  SIG_BOUNDARY1, DEFAULT_LOG_LEVEL
+from utils.constants import Situation
 from utils.bot_logging import set_log_level, Tweeter, DummyTweepyApi, ImageLogger, LOG_DIR
 from utils.shooting import LaserController
 from utils.scan_scene import scan_scene
@@ -22,6 +27,7 @@ from utils.vision import PixyBlock
 serial_device = '/dev/ttyACM0'
 baudRate = 9600
 
+logger = logging.getLogger(__name__)
 image_logger = ImageLogger(__name__)
 
 while True:
@@ -29,7 +35,7 @@ while True:
         ser = serial.Serial(serial_device, baudRate)
         break
     except:
-        print "Could not open serial device {}".format(serial_device)
+        logger.exception("Could not open serial device {}".format(serial_device))
         time.sleep(10)
 
 # defining PixyCam sensory variables
@@ -137,15 +143,15 @@ def setup():
     """
     logger.info('Setting up')
     tweeter = Tweeter()
-    tweeter.tweet_canned(Situation.STARTING_UP, TWEET_DEFAULT_PROB)
+    tweeter.tweet_canned(constants.Situation.STARTING_UP, constants.TWEET_DEFAULT_PROB)
     # global blocks
     pixy_init_status = pixy.pixy_init()
     if pixy_init_status != 0:
-        print 'Error: pixy_init() [%d] ' % pixy_init_status
+        logger.error('Error: pixy_init() [%d] ' % pixy_init_status)
         pixy.pixy_error(pixy_init_status)
         return
     else:
-        print "Pixy setup OK"
+        logger.info("Pixy setup OK")
     blocks = pixy.BlockArray(BLOCK_BUFFER_SIZE)
     signal.signal(signal.SIGINT, handle_SIGINT)
     robot_state = RobotState(blocks, datetime.now(), MAX_MOTOR_SPEED)
@@ -193,14 +199,14 @@ def loop(robot_state):
 
     tweeter = Tweeter()
     if ser.in_waiting:
-        print("Reading line from serial..")
+        logger.debug("Reading line from serial..")
         code = ser.readline().rstrip()
-        print("Got IR code {}".format(code))
+        logger.debug("Got IR code {}".format(code))
         robot_state.killed = True
 
     if robot_state.killed:
-        print "I'm hit!"
-        tweeter.tweet_canned(Situation.RECEIVED_HIT, TWEET_HIT_PROB)
+        logger.critical("I'm hit!")
+        tweeter.tweet_canned(Situation.RECEIVED_HIT, constants.TWEET_HIT_PROB)
 
     robot_state.current_time = datetime.now()
 
@@ -220,15 +226,15 @@ def loop(robot_state):
         if time.time() - robot_state.search_starting_time >= robot_state.min_turning_time:
             if block is not None:
                 robot_state.state = "chase"
-                print 'search to chase'
-                tweeter.tweet_canned(Situation.CHASE, TWEET_CHASE_PROB)
+                logger.info('search to chase')
+                tweeter.tweet_canned(Situation.CHASE, constants.TWEET_CHASE_PROB)
 
             else:
             ## If enough turn for enough time go to roam state
                 if time.time() - robot_state.search_starting_time > robot_state.max_turning_time:
                     robot_state.state = "roam"
-                    print 'search to roam'
-                    tweeter.tweet_canned(Situation.RANDOM, TWEET_ROAM_PROB)
+                    logger.info('search to roam')
+                    tweeter.tweet_canned(Situation.RANDOM, constants.TWEET_ROAM_PROB)
                 else:
                     motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
                                      int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
@@ -240,10 +246,10 @@ def loop(robot_state):
         ## Look for Enemy target; if none found go to roam state
         block = scan_scene("chase")
         if block is None:
-            print block
+            logger.debug(block)
             robot_state.state = "roam"
-            print "chase to roam"
-            tweeter.tweet_canned(Situation.RANDOM, TWEET_ROAM_PROB)
+            logger.info("chase to roam")
+            tweeter.tweet_canned(Situation.RANDOM, constants.TWEET_ROAM_PROB)
         else: # count > 0:
             pan_error = drive_toward_block(robot_state, block)
             pan_loop.update(pan_error)
@@ -265,37 +271,37 @@ def loop(robot_state):
                 robot_state.switch_to_search()
                 motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
                                  int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
-                print 'chase to search'
-                tweeter.tweet_canned(Situation.SEARCH, TWEET_SEARCH_PROB)
+                logger.info('chase to search')
+                tweeter.tweet_canned(Situation.SEARCH, constants.TWEET_SEARCH_PROB)
 
     elif robot_state.state == "roam":
         # First, see if there is a shootable target
         block = scan_scene("chase")
         if block is not None:
             robot_state.state = "chase"
-            print 'roam to chase'
-            tweeter.tweet_canned(Situation.CHASE, TWEET_CHASE_PROB)
+            logger.info('roam to chase')
+            tweeter.tweet_canned(Situation.CHASE, constants.TWEET_CHASE_PROB)
             # return run_flag
         else:
             # else, we are still in roam mode
             block = scan_scene("roam")
             if block is not None:
-                if block.signature != SIG_BOUNDARY1:
+                if block.signature != constants.SIG_BOUNDARY1:
                     dist_error = compute_dist_error(block)
                     robot_state.throttle = 0.8
                     robot_state.diff_drive = 0 #abs(float(pan_error) / 300+.4)
                     robot_state.advance = logit(dist_error, .025, 400)
                     if robot_state.advance < .05:
                         robot_state.switch_to_search()
-                        print 'roam to search'
-                        tweeter.tweet_canned(Situation.SEARCH, TWEET_SEARCH_PROB)
+                        logger.info('roam to search')
+                        tweeter.tweet_canned(Situation.SEARCH, constants.TWEET_SEARCH_PROB)
                     else:
                         l_drive, r_drive = drive(robot_state)
                 else:
                     robot_state.switch_to_search()
                     motors.setSpeeds(0, 0)
-                    print 'roam to search from wall'
-                    tweeter.tweet_canned(Situation.WALL, TWEET_WALL_PROB)
+                    logger.info('roam to search from wall')
+                    tweeter.tweet_canned(Situation.WALL, constants.TWEET_WALL_PROB)
             else:
                 robot_state.advance = .7
                 l_drive, r_drive = drive(robot_state)
@@ -358,12 +364,12 @@ if __name__ == '__main__':
     parser.add_argument(
         '--verbosity', '-v', action='count', default=0,
         help='Increase verbosity of command line logging (1 for INFO, 2 for DEBUG, 3 for NOTSET). ' +
-             'Default is {}.'.format(logging.getLevelName(DEFAULT_LOG_LEVEL))
+             'Default is {}.'.format(logging.getLevelName(constants.DEFAULT_LOG_LEVEL))
     )
 
     parsed_args = parser.parse_args()
 
-    set_log_level(DEFAULT_LOG_LEVEL)
+    set_log_level(constants.DEFAULT_LOG_LEVEL)
 
     if parsed_args.debug:
         set_log_level(logging.DEBUG)
@@ -402,4 +408,4 @@ if __name__ == '__main__':
     finally:
         pixy.pixy_close()
         motors.setSpeeds(0, 0)
-        print("Robot Shutdown Completed")
+        logger.info("Robot Shutdown Completed")
