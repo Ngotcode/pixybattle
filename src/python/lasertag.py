@@ -346,7 +346,8 @@ if __name__ == '__main__':
 
     parser.add_argument(
         '--debug', '-d', action='store_true', default=False,
-        help='Start in debug mode, setting log level to DEBUG unless verbosity is specified, and tweeting to a file.'
+        help='Start in debug mode, setting log level to DEBUG unless verbosity is specified, tweeting to a file, '
+             'and skipping the pause after the warmup.'
     )
 
     parser.add_argument(
@@ -385,11 +386,11 @@ if __name__ == '__main__':
     try:
         # pixy.pixy_cam_set_brightness(20)
         robot_state = setup()
+        robot_state.tweeter = Tweeter()
         with LaserController() as controller:
             robot_state.laser = controller
-            robot_state.tweeter = Tweeter()
 
-            if parsed_args.debug or not parsed_args.skip_prewarm:
+            if not parsed_args.debug and not parsed_args.skip_prewarm:
                 input('\n\n\nPress enter to GO!\n\n\n')
 
             logger.info('Robot starting!')
