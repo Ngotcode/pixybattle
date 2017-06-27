@@ -11,6 +11,7 @@ from argparse import ArgumentParser
 
 import serial
 import numpy as np
+from six.moves import input
 
 from pololu_drv8835_rpi import motors
 from pixy import pixy
