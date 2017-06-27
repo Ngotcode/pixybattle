@@ -390,10 +390,10 @@ if __name__ == '__main__':
     try:
         # pixy.pixy_cam_set_brightness(20)
         robot_state = setup()
-        robot_state.tweeter = Tweeter()
-        robot_state.tweeter.tweet_canned(Situation.STARTING_UP, 1.0)
-        with LaserController() as controller:
+        with LaserController() as controller, Tweeter() as tweeter:
             robot_state.laser = controller
+            robot_state.tweeter = tweeter
+            robot_state.tweeter.tweet_canned(Situation.STARTING_UP, 1.0)
 
             if not parsed_args.debug and not parsed_args.skip_prewarm:
                 input('\n\n\nPress enter to GO!\n\n\n')
