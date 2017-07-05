@@ -61,8 +61,8 @@ PAN_DERIVATIVE_GAIN = 300
 TILT_PROPORTIONAL_GAIN = 500
 TILT_DERIVATIVE_GAIN = 400
 
-MAX_MOTOR_SPEED = 480  # 480
-MIN_MOTOR_SPEED = -480
+MAX_MOTOR_SPEED = 1000  # 480
+MIN_MOTOR_SPEED = -1000
 
 run_flag = 1
 
@@ -204,13 +204,12 @@ def loop(robot_state):
 
     if robot_state.killed:
         logger.critical("I'm hit!")
-        robot_state.tweeter.tweet_canned(Situation.RECEIVED_HIT, constants.TWEET_HIT_PROB)
+        # robot_state.tweeter.tweet_canned(Situation.RECEIVED_HIT, constants.TWEET_HIT_PROB)
 
     robot_state.current_time = datetime.now()
 
     # If no new blocks, don't do anything
     while not pixy.pixy_blocks_are_new() and run_flag:
-        # print PixyBlock.from_pixy(), 'test'
         pass
     # while pixy.pixy_blocks_are_new()  and run_flag:
     #     pass
@@ -225,14 +224,14 @@ def loop(robot_state):
             if block is not None:
                 robot_state.state = "chase"
                 logger.info('search to chase')
-                robot_state.tweeter.tweet_canned(Situation.CHASE, constants.TWEET_CHASE_PROB)
+                # robot_state.tweeter.tweet_canned(Situation.CHASE, constants.TWEET_CHASE_PROB)
 
             else:
             ## If enough turn for enough time go to roam state
                 if time.time() - robot_state.search_starting_time > robot_state.max_turning_time:
                     robot_state.state = "roam"
                     logger.info('search to roam')
-                    robot_state.tweeter.tweet_canned(Situation.RANDOM, constants.TWEET_ROAM_PROB)
+                    # robot_state.tweeter.tweet_canned(Situation.RANDOM, constants.TWEET_ROAM_PROB)
                 else:
                     motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
                                      int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
@@ -247,7 +246,7 @@ def loop(robot_state):
             logger.debug(block)
             robot_state.state = "roam"
             logger.info("chase to roam")
-            robot_state.tweeter.tweet_canned(Situation.RANDOM, constants.TWEET_ROAM_PROB)
+            # robot_state.tweeter.tweet_canned(Situation.RANDOM, constants.TWEET_ROAM_PROB)
         else: # count > 0:
             pan_error = drive_toward_block(robot_state, block)
             pan_loop.update(pan_error)
@@ -266,11 +265,11 @@ def loop(robot_state):
             robot_state.previous_time = robot_state.current_time
             l_drive, r_drive = drive(robot_state)
             if robot_state.advance < .5:
-                robot_state.switch_to_search()
+                robot_state.switch_to_search(wall = False)
                 motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
                                  int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
                 logger.info('chase to search')
-                robot_state.tweeter.tweet_canned(Situation.SEARCH, constants.TWEET_SEARCH_PROB)
+                # robot_state.tweeter.tweet_canned(Situation.SEARCH, constants.TWEET_SEARCH_PROB)
 
     elif robot_state.state == "roam":
         # First, see if there is a shootable target
@@ -278,7 +277,7 @@ def loop(robot_state):
         if block is not None:
             robot_state.state = "chase"
             logger.info('roam to chase')
-            robot_state.tweeter.tweet_canned(Situation.CHASE, constants.TWEET_CHASE_PROB)
+            # robot_state.tweeter.tweet_canned(Situation.CHASE, constants.TWEET_CHASE_PROB)
             # return run_flag
         else:
             # else, we are still in roam mode
@@ -290,19 +289,24 @@ def loop(robot_state):
                     robot_state.diff_drive = 0 #abs(float(pan_error) / 300+.4)
                     robot_state.advance = logit(dist_error, .025, 400)
                     if robot_state.advance < .05:
-                        robot_state.switch_to_search()
+                        robot_state.switch_to_search(wall = False)
+                        motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
+                                         int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
                         logger.info('roam to search')
-                        robot_state.tweeter.tweet_canned(Situation.SEARCH, constants.TWEET_SEARCH_PROB)
+                        # robot_state.tweeter.tweet_canned(Situation.SEARCH, constants.TWEET_SEARCH_PROB)
                     else:
                         l_drive, r_drive = drive(robot_state)
                 else:
-                    robot_state.switch_to_search()
-                    motors.setSpeeds(0, 0)
+                    robot_state.switch_to_search(wall = True)
+                    motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
+                                     int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
+                    # motors.setSpeeds(0, 0)
                     logger.info('roam to search from wall')
-                    robot_state.tweeter.tweet_canned(Situation.WALL, constants.TWEET_WALL_PROB)
+                    # robot_state.tweeter.tweet_canned(Situation.WALL, constants.TWEET_WALL_PROB)
             else:
                 robot_state.advance = .7
                 l_drive, r_drive = drive(robot_state)
+    # print robot_state.state
     return run_flag
 
 
@@ -390,8 +394,8 @@ if __name__ == '__main__':
     try:
         # pixy.pixy_cam_set_brightness(20)
         robot_state = setup()
-        robot_state.tweeter = Tweeter()
-        robot_state.tweeter.tweet_canned(Situation.STARTING_UP, 1.0)
+        # robot_state.tweeter = Tweeter()
+        # robot_state.tweeter.tweet_canned(Situation.STARTING_UP, 1.0)
         with LaserController() as controller:
             robot_state.laser = controller
 
