@@ -43,7 +43,7 @@ import logging
 import time
 import datetime
 
-from utils.constants import LASER_COOLDOWN, RECOVERY, PixySerial, Situation
+from utils.constants import LASER_COOLDOWN, RECOVERY, TWEET_FIRE_PROB, TWEET_HIT_PROB, PixySerial, Situation
 from utils.bot_logging import Tweeter
 
 # year, month, day, hour, second, microsecond
@@ -65,7 +65,6 @@ class LaserController(object):
         self.interface = LaserInterface()
         self.laser_process = LaserProcess(self.interface)
         self.logger = logging.getLogger('{}.{}'.format(__name__, type(self).__name__))
-        self.tweeter = Tweeter()
 
     def start(self):
         """Start the underlying WeaponsSystem process; blocks until laser is ready"""
@@ -88,8 +87,6 @@ class LaserController(object):
     def is_disabled(self):
         """Whether the laser is currently disabled by being hit"""
         is_disabled = self.interface.is_disabled
-        if is_disabled:
-            self.tweeter.tweet_canned(Situation.RECEIVED_HIT, p=1.0)
         return is_disabled
 
     def fire_multiple(self, shots=1, timeout_per_shot=None):
@@ -152,7 +149,6 @@ class LaserController(object):
         if block:
             result = self.fire_once(timeout)
         self.interface.firing = True
-        self.tweeter.tweet_canned(Situation.LASER_FIRING, p=0.01)
         return result
 
     def hold_fire(self):
@@ -308,11 +304,14 @@ class LaserProcess(Process):
         self.interface = laser_interface
         self.ser = None
         self.logger = None
+        self.tweeter = None
 
     def run(self):
         self.logger = logging.getLogger('{}.{}'.format(__name__, type(self).__name__))
         self.logger.debug('Laser Process started')
-        self._setup_serial()
+        self._setup()
+
+        self.tweeter.tweet_canned(Situation.LASER_FIRING, 0.5)
 
         while not self.interface.stood_down:
             if self.interface.firing and not self.interface.is_cooling and not self._check_hit():
@@ -322,10 +321,11 @@ class LaserProcess(Process):
 
         self.logger.debug('Laser Process stood down')
 
-    def _setup_serial(self):
+    def _setup(self):
         if self.ser is None:
             self.ser = PixySerial.get()
         self.interface.stood_down = False
+        self.tweeter = Tweeter()
 
     def _check_hit(self):
         if self.interface.is_disabled:
@@ -334,6 +334,7 @@ class LaserProcess(Process):
         if self.ser.in_waiting and self.ser.readline().rstrip() == 'HIT':
             self.logger.warn("We've been hit! Recovering for {}".format(self.interface.recovery))
             self.interface.last_hit = datetime.datetime.utcnow()
+            self.tweeter.tweet_canned(Situation.RECEIVED_HIT, TWEET_HIT_PROB)
             return True
 
         return False
@@ -343,3 +344,4 @@ class LaserProcess(Process):
         self.ser.write("FIRE\n")
         self.interface.last_fired = datetime.datetime.utcnow()
         self.logger.firing_log('Laser cooling for {}'.format(self.interface.cooldown))
+        self.tweeter.tweet_canned(Situation.LASER_FIRING, TWEET_FIRE_PROB)
