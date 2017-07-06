@@ -25,19 +25,8 @@ from utils.shooting import LaserController
 from utils.scan_scene import scan_scene
 from utils.vision import PixyBlock
 
-serial_device = '/dev/ttyACM0'
-baudRate = 9600
-
 logger = logging.getLogger(__name__)
 image_logger = ImageLogger(__name__)
-
-while True:
-    try:
-        ser = serial.Serial(serial_device, baudRate)
-        break
-    except:
-        logger.exception("Could not open serial device {}".format(serial_device))
-        time.sleep(10)
 
 # defining PixyCam sensory variables
 PIXY_MIN_X = 0
@@ -195,17 +184,6 @@ def loop(robot_state):
     Main loop, Gets blocks from pixy, analyzes target location,
     chooses action for robot and sends instruction to motors
     """
-
-    if ser.in_waiting:
-        logger.debug("Reading line from serial..")
-        code = ser.readline().rstrip()
-        logger.debug("Got IR code {}".format(code))
-        robot_state.killed = True
-
-    if robot_state.killed:
-        logger.critical("I'm hit!")
-        robot_state.tweeter.tweet_canned(Situation.RECEIVED_HIT, constants.TWEET_HIT_PROB)
-
     robot_state.current_time = datetime.now()
 
     # If no new blocks, don't do anything
