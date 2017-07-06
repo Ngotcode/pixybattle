@@ -73,7 +73,7 @@ MAX_Y_WALL = 75
 
 TWEET_DEFAULT_PROB = 1.0
 TWEET_HIT_PROB = 1.0
-TWEET_FIRE_PROB = 1.0
+TWEET_FIRE_PROB = 0.001
 TWEET_SEARCH_PROB = 1.0
 TWEET_CHASE_PROB = 1.0
 TWEET_ROAM_PROB = 1.0
@@ -112,6 +112,7 @@ class PixySerial(object):
         while cls._serial is None:
             try:
                 cls._serial = serial.Serial(cls.SERIAL_DEVICE, cls.BAUD_RATE)
+                logger.warning('Successfully got serial interface')
                 break
             except:
                 logger.warning(
