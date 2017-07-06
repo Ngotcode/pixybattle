@@ -1,14 +1,18 @@
 from random import random
-from utils.constants import MAX_TIME_TURN
+from utils.constants import MIN_TIME_TURN_WALL, MIN_TIME_TURN, MAX_TIME_TURN_WALL, MAX_TIME_TURN
 from time import time
 
 class RobotState(object):
     """docstring for robot_state"""
-    def switch_to_search(self):
+    def switch_to_search(self, wall = False):
         self.state = "search"
         self.turn_direction = 1 if random() <.5 else -1
-        self.max_turning_time = MAX_TIME_TURN/4. + random() * 3/4. * MAX_TIME_TURN
-        self.min_turning_time = MAX_TIME_TURN/4.
+        if wall:
+            self.max_turning_time = MIN_TIME_TURN_WALL + random() * (MAX_TIME_TURN_WALL - MIN_TIME_TURN_WALL)
+            self.min_turning_time = MIN_TIME_TURN_WALL
+        else:
+            self.max_turning_time = MIN_TIME_TURN + random() * (MAX_TIME_TURN - MIN_TIME_TURN)
+            self.min_turning_time = MIN_TIME_TURN
         self.advance = 0
         self.search_starting_time = time()
     
