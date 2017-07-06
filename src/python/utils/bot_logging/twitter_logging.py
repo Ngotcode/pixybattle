@@ -65,68 +65,6 @@ def get_timestamp():
     return '{:.2f}: '.format(delta.total_seconds())
 
 
-class Tweeter(object):
-    tweeter_process = None
-    api = None
-
-    def __init__(self, default_prob=TWEET_DEFAULT_PROB, seed=None, api=None):
-        if api is not None:
-            self.api = api
-        elif self.api is None:
-            try:
-                with open(CREDENTIALS_PATH) as f:
-                    cred = json.load(f)
-
-                auth = tweepy.OAuthHandler(cred['consumer_key'], cred['consumer_secret'])
-                auth.set_access_token(cred['access_token'], cred['access_secret'])
-
-                api = tweepy.API(auth)
-            except IOError:
-                logger.warn('API credentials not found at {}. Tweets will not be submitted.'.format(CREDENTIALS_PATH))
-            type(self).api = api
-
-        if self.tweeter_process:
-            self.queue = self.tweeter_process.queue
-        else:
-            self.queue = mp.Queue()
-            self.tweeter_process = TweeterProcess(self.queue, default_prob, seed, self.api)
-
-    def _put(self, command, *args, **kwargs):
-        try:
-            self.queue.put((command, args, kwargs), False)
-        except Queue.Full:
-            logger.exception('Tweet queue is full')
-            pass
-
-    @wraps(TweeterProcess.tweet)
-    def tweet(self, *args, **kwargs):
-        self._put('tweet', *args, **kwargs)
-
-    @wraps(TweeterProcess.tweet_blocks)
-    def tweet_blocks(self, *args, **kwargs):
-        self._put('tweet_blocks', *args, **kwargs)
-
-    @wraps(TweeterProcess.tweet_canned)
-    def tweet_canned(self, *args, **kwargs):
-        self._put('tweet_canned', *args, **kwargs)
-
-    def start(self):
-        if not self.tweeter_process.is_alive():
-            self.tweeter_process.start()
-
-    def __enter__(self):
-        self.start()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.stop()
-
-    def stop(self):
-        self._put('kill')
-        time.sleep(1)
-        self.tweeter_process.terminate()
-        type(self).tweeter_process = None
-
-
 class TweeterProcess(mp.Process):
     def __init__(self, queue, default_prob=TWEET_DEFAULT_PROB, seed=None, api=None):
         """
@@ -291,6 +229,81 @@ class TweeterProcess(mp.Process):
             return False
 
         return True
+
+
+class Tweeter(object):
+    tweeter_process = None
+    api = None
+
+    def __init__(self, default_prob=TWEET_DEFAULT_PROB, seed=None, api=None):
+        if api is not None:
+            self.api = api
+        elif self.api is None:
+            try:
+                with open(CREDENTIALS_PATH) as f:
+                    cred = json.load(f)
+
+                auth = tweepy.OAuthHandler(cred['consumer_key'], cred['consumer_secret'])
+                auth.set_access_token(cred['access_token'], cred['access_secret'])
+
+                api = tweepy.API(auth)
+            except IOError:
+                logger.warn('API credentials not found at {}. Tweets will not be submitted.'.format(CREDENTIALS_PATH))
+            type(self).api = api
+
+        if self.tweeter_process:
+            self.queue = self.tweeter_process.queue
+        else:
+            self.queue = mp.Queue()
+            self.tweeter_process = TweeterProcess(self.queue, default_prob, seed, self.api)
+
+    def _put(self, command, *args, **kwargs):
+        try:
+            self.queue.put((command, args, kwargs), False)
+        except Queue.Full:
+            logger.exception('Tweet queue is full')
+            pass
+        except Exception:
+            logger.exception('Some sort of failure in queue handling')
+            pass
+
+    @wraps(TweeterProcess.tweet)
+    def tweet(self, *args, **kwargs):
+        self._put('tweet', *args, **kwargs)
+
+    @wraps(TweeterProcess.tweet_blocks)
+    def tweet_blocks(self, *args, **kwargs):
+        self._put('tweet_blocks', *args, **kwargs)
+
+    @wraps(TweeterProcess.tweet_canned)
+    def tweet_canned(self, *args, **kwargs):
+        self._put('tweet_canned', *args, **kwargs)
+
+    def start(self):
+        if not self.tweeter_process.is_alive():
+            self.tweeter_process.start()
+
+    def __enter__(self):
+        self.start()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+
+    def stop(self):
+        while self.queue.qsize():
+            try:
+                self.queue.get(block=False)
+            except Queue.Empty:
+                break
+
+        self._put('kill')
+
+        killed_at = datetime.now()
+        while self.tweeter_process.is_alive():
+            time.sleep(0.01)
+            if (datetime.now() - killed_at).total_seconds() > 1:
+                self.tweeter_process.terminate()
+        type(self).tweeter_process = None
 
 
 class DummyTweepyApi(object):
