@@ -8,10 +8,12 @@ import math
 from datetime import datetime
 import logging
 from argparse import ArgumentParser
-
+from time import sleep
 import serial
 import numpy as np
 from six.moves import input
+
+from random import random
 
 from pololu_drv8835_rpi import motors
 from pixy import pixy
@@ -61,8 +63,8 @@ PAN_DERIVATIVE_GAIN = 300
 TILT_PROPORTIONAL_GAIN = 500
 TILT_DERIVATIVE_GAIN = 400
 
-MAX_MOTOR_SPEED = 750  # 480
-MIN_MOTOR_SPEED = -750
+MAX_MOTOR_SPEED = 500  # 480
+MIN_MOTOR_SPEED = -200
 
 run_flag = 1
 
@@ -154,6 +156,9 @@ def setup():
     blocks = pixy.BlockArray(BLOCK_BUFFER_SIZE)
     signal.signal(signal.SIGINT, handle_SIGINT)
     robot_state = RobotState(blocks, datetime.now(), MAX_MOTOR_SPEED)
+    robot_state.turn_time = 5 * random()
+    robot_state.rot = 1
+    robot_state.start_turn = time.time()
     return robot_state
 
 # killed = False
@@ -232,13 +237,12 @@ def loop(robot_state):
                     robot_state.state = "roam"
                     logger.info('search to roam')
                     # robot_state.tweeter.tweet_canned(Situation.RANDOM, constants.TWEET_ROAM_PROB)
-                else:
-                    motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
-                                     int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
-        else:
-            motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
-                             int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
-
+                # else:
+                #     motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
+                #                      int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
+        # else:
+        #     motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
+        #                      int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
     elif robot_state.state == "chase":
         ## Look for Enemy target; if none found go to roam state
         block = scan_scene("chase")
@@ -263,11 +267,11 @@ def loop(robot_state):
             dt = (robot_state.current_time - robot_state.previous_time).total_seconds()
             bias_computation(robot_state, dt, pan_loop)
             robot_state.previous_time = robot_state.current_time
-            l_drive, r_drive = drive(robot_state)
+            # l_drive, r_drive = drive(robot_state)
             if robot_state.advance < .5:
                 robot_state.switch_to_search(wall = False)
-                motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
-                                 int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
+                # motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
+                #                  int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
                 logger.info('chase to search')
                 # robot_state.tweeter.tweet_canned(Situation.SEARCH, constants.TWEET_SEARCH_PROB)
 
@@ -290,22 +294,47 @@ def loop(robot_state):
                     robot_state.advance = logit(dist_error, .025, 400)
                     if robot_state.advance < .05:
                         robot_state.switch_to_search(wall = False)
-                        motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
-                                         int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
+                        # motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
+                        #                  int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
                         logger.info('roam to search')
                         # robot_state.tweeter.tweet_canned(Situation.SEARCH, constants.TWEET_SEARCH_PROB)
-                    else:
-                        l_drive, r_drive = drive(robot_state)
+                    # else:
+                    #     l_drive, r_drive = drive(robot_state)
                 else:
                     robot_state.switch_to_search(wall = True)
-                    motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
-                                     int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
+                    # motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
+                    #                  int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
                     # motors.setSpeeds(0, 0)
                     logger.info('roam to search from wall')
                     # robot_state.tweeter.tweet_canned(Situation.WALL, constants.TWEET_WALL_PROB)
-            else:
-                robot_state.advance = .7
-                l_drive, r_drive = drive(robot_state)
+            # else:
+            #     robot_state.advance = .7
+            #     l_drive, r_drive = drive(robot_state)
+    if time.time() - robot_state.start_turn > robot_state.turn_time:
+        robot_state.start_turn = time.time()
+        # robot_state.turn_time = random() * 5
+        robot_state.turn_time = 10
+        # robot_state.rot = -robot_state.rot
+        # motors.setSpeeds(int(-2/3. * robot_state.rot * MAX_MOTOR_SPEED),
+        #                  int( 2/3. * robot_state.rot * MAX_MOTOR_SPEED))
+        # sleep(.5)
+        # motors.setSpeeds(int(-1./3 * robot_state.rot * MAX_MOTOR_SPEED),
+        #                  int( 1./3 * robot_state.rot * MAX_MOTOR_SPEED))
+        # sleep(.5)
+        # motors.setSpeeds(int(0),
+        #                  int(0))
+        # sleep(.5)
+        # motors.setSpeeds(int( 1./3 * robot_state.rot * MAX_MOTOR_SPEED),
+        #                  int(-1./3 * robot_state.rot * MAX_MOTOR_SPEED))
+        # sleep(.5)
+        # motors.setSpeeds(int( 2./3 * robot_state.rot * MAX_MOTOR_SPEED),
+        #                  int(-2./3 * robot_state.rot * MAX_MOTOR_SPEED))
+        # sleep(.5)
+        motors.setSpeeds(int(0),
+                         int(0))
+        sleep(.5)
+        motors.setSpeeds(int( robot_state.rot * 1./3 * MAX_MOTOR_SPEED),
+                         int(-robot_state.rot * 1./3 * MAX_MOTOR_SPEED))
     # print robot_state.state
     return run_flag
 

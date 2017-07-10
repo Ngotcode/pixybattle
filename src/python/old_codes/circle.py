@@ -19,7 +19,7 @@ while True:
         print "Could not open serial device {}".format(serial_device)
         time.sleep(10)
 
-MAX_MOTOR_SPEED = 300  # 480
+MAX_MOTOR_SPEED = 1000  # 480
 MIN_MOTOR_SPEED = -480
 
 run_flag = 1
@@ -90,7 +90,8 @@ def loop():
         time.sleep(5)
 
     current_time = datetime.now()
-    drive()
+    #drive()
+    motors.setSpeeds(int(-MAX_MOTOR_SPEED/2), int(MAX_MOTOR_SPEED/2))
     return run_flag
 
 
