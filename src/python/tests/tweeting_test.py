@@ -19,7 +19,7 @@ LOW_TWEET_PROB = 0.5
 
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output', 'tweeting_test')
 
-FakePixyBlock = namedtuple('FakeBlock', ['x', 'y', 'width', 'height', 'angle', 'signature'])
+FakePixyBlock = namedtuple('FakePixyBlock', ['x', 'y', 'width', 'height', 'angle', 'signature'])
 
 
 def empty_output_dir():
@@ -67,15 +67,17 @@ def tweeter(request):
 
 def test_tweets(tweeter):
     tweet_msg = 'this is a message'
-    tweeter.tweet(tweet_msg)
+    with tweeter:
+        tweeter.tweet(tweet_msg)
     assert read_statuses(tweeter)[0].endswith(tweet_msg)
 
 
 def test_tweets_canned(tweeter):
     count = 0
-    for situation in Situation:
-        tweeter.tweet_canned(situation)
-        count += 1
+    with tweeter:
+        for situation in Situation:
+            tweeter.tweet_canned(situation)
+            count += 1
 
     assert len(read_statuses(tweeter)) == count
 
@@ -89,13 +91,15 @@ def blocks():
 
 
 def test_tweets_image(tweeter, blocks):
-    tweeter.tweet_blocks(blocks)
+    with tweeter:
+        tweeter.tweet_blocks(blocks)
     check_image_paths(tweeter)
 
 
 def test_tweets_image_with_status(tweeter, blocks):
     tweet_msg = 'this is a message'
-    tweeter.tweet_blocks(blocks, msg=tweet_msg)
+    with tweeter:
+        tweeter.tweet_blocks(blocks, msg=tweet_msg)
     check_image_paths(tweeter)
     status = read_statuses(tweeter)[0]
     assert tweet_msg in status

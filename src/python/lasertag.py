@@ -25,19 +25,8 @@ from utils.shooting import LaserController
 from utils.scan_scene import scan_scene
 from utils.vision import PixyBlock
 
-serial_device = '/dev/ttyACM0'
-baudRate = 9600
-
 logger = logging.getLogger(__name__)
 image_logger = ImageLogger(__name__)
-
-while True:
-    try:
-        ser = serial.Serial(serial_device, baudRate)
-        break
-    except:
-        logger.exception("Could not open serial device {}".format(serial_device))
-        time.sleep(10)
 
 # defining PixyCam sensory variables
 PIXY_MIN_X = 0
@@ -195,21 +184,11 @@ def loop(robot_state):
     Main loop, Gets blocks from pixy, analyzes target location,
     chooses action for robot and sends instruction to motors
     """
-
-    if ser.in_waiting:
-        logger.debug("Reading line from serial..")
-        code = ser.readline().rstrip()
-        logger.debug("Got IR code {}".format(code))
-        robot_state.killed = True
-
-    if robot_state.killed:
-        logger.critical("I'm hit!")
-        # robot_state.tweeter.tweet_canned(Situation.RECEIVED_HIT, constants.TWEET_HIT_PROB)
-
     robot_state.current_time = datetime.now()
 
     # If no new blocks, don't do anything
     while not pixy.pixy_blocks_are_new() and run_flag:
+        # print PixyBlock.from_pixy(), 'test'
         pass
     # while pixy.pixy_blocks_are_new()  and run_flag:
     #     pass
@@ -224,14 +203,14 @@ def loop(robot_state):
             if block is not None:
                 robot_state.state = "chase"
                 logger.info('search to chase')
-                # robot_state.tweeter.tweet_canned(Situation.CHASE, constants.TWEET_CHASE_PROB)
+                robot_state.tweeter.tweet_canned(Situation.CHASE, constants.TWEET_CHASE_PROB)
 
             else:
             ## If enough turn for enough time go to roam state
                 if time.time() - robot_state.search_starting_time > robot_state.max_turning_time:
                     robot_state.state = "roam"
                     logger.info('search to roam')
-                    # robot_state.tweeter.tweet_canned(Situation.RANDOM, constants.TWEET_ROAM_PROB)
+                    robot_state.tweeter.tweet_canned(Situation.RANDOM, constants.TWEET_ROAM_PROB)
                 else:
                     motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
                                      int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
@@ -246,7 +225,7 @@ def loop(robot_state):
             logger.debug(block)
             robot_state.state = "roam"
             logger.info("chase to roam")
-            # robot_state.tweeter.tweet_canned(Situation.RANDOM, constants.TWEET_ROAM_PROB)
+            robot_state.tweeter.tweet_canned(Situation.RANDOM, constants.TWEET_ROAM_PROB)
         else: # count > 0:
             pan_error = drive_toward_block(robot_state, block)
             pan_loop.update(pan_error)
@@ -269,7 +248,7 @@ def loop(robot_state):
                 motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
                                  int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
                 logger.info('chase to search')
-                # robot_state.tweeter.tweet_canned(Situation.SEARCH, constants.TWEET_SEARCH_PROB)
+                robot_state.tweeter.tweet_canned(Situation.SEARCH, constants.TWEET_SEARCH_PROB)
 
     elif robot_state.state == "roam":
         # First, see if there is a shootable target
@@ -277,7 +256,7 @@ def loop(robot_state):
         if block is not None:
             robot_state.state = "chase"
             logger.info('roam to chase')
-            # robot_state.tweeter.tweet_canned(Situation.CHASE, constants.TWEET_CHASE_PROB)
+            robot_state.tweeter.tweet_canned(Situation.CHASE, constants.TWEET_CHASE_PROB)
             # return run_flag
         else:
             # else, we are still in roam mode
@@ -293,7 +272,7 @@ def loop(robot_state):
                         motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
                                          int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
                         logger.info('roam to search')
-                        # robot_state.tweeter.tweet_canned(Situation.SEARCH, constants.TWEET_SEARCH_PROB)
+                        robot_state.tweeter.tweet_canned(Situation.SEARCH, constants.TWEET_SEARCH_PROB)
                     else:
                         l_drive, r_drive = drive(robot_state)
                 else:
@@ -302,7 +281,7 @@ def loop(robot_state):
                                      int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
                     # motors.setSpeeds(0, 0)
                     logger.info('roam to search from wall')
-                    # robot_state.tweeter.tweet_canned(Situation.WALL, constants.TWEET_WALL_PROB)
+                    robot_state.tweeter.tweet_canned(Situation.WALL, constants.TWEET_WALL_PROB)
             else:
                 robot_state.advance = .7
                 l_drive, r_drive = drive(robot_state)
@@ -394,10 +373,10 @@ if __name__ == '__main__':
     try:
         # pixy.pixy_cam_set_brightness(20)
         robot_state = setup()
-        # robot_state.tweeter = Tweeter()
-        # robot_state.tweeter.tweet_canned(Situation.STARTING_UP, 1.0)
-        with LaserController() as controller:
+        with LaserController() as controller, Tweeter() as tweeter:
             robot_state.laser = controller
+            robot_state.tweeter = tweeter
+            robot_state.tweeter.tweet_canned(Situation.STARTING_UP, 1.0)
 
             if not parsed_args.debug and not parsed_args.skip_prewarm:
                 input('\n\n\nPress enter to GO!\n\n\n')
