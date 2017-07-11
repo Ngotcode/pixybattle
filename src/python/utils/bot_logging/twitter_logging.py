@@ -78,6 +78,7 @@ class TweeterProcess(mp.Process):
         api
             For testing purposes. Default will create a new tweepy.API instance
         """
+        logger.debug('Instantiating TweeterProcess')
         super(TweeterProcess, self).__init__()
         self.queue = queue
         self.api = api
@@ -89,6 +90,7 @@ class TweeterProcess(mp.Process):
         self.random = None
 
     def setup(self):
+        logger.debug('Starting TweeterProcess')
         self.image_creator = ImageCreator()
         self.random = random.Random(self.seed)
 
@@ -235,10 +237,14 @@ class Tweeter(object):
     tweeter_process = None
     api = None
 
-    def __init__(self, default_prob=TWEET_DEFAULT_PROB, seed=None, api=None):
+    def __init__(self, default_prob=TWEET_DEFAULT_PROB, seed=None, api=None, disable_tweeting=False):
+        logger.debug('Instantiating Tweeter')
+        self.disable_tweeting = disable_tweeting
         if api is not None:
+            logger.debug('Using manually passed in Twitter API')
             self.api = api
         elif self.api is None:
+            logger.debug('Authenticating Twitter credentials')
             try:
                 with open(CREDENTIALS_PATH) as f:
                     cred = json.load(f)
@@ -250,14 +256,19 @@ class Tweeter(object):
             except IOError:
                 logger.warn('API credentials not found at {}. Tweets will not be submitted.'.format(CREDENTIALS_PATH))
             type(self).api = api
-
         if self.tweeter_process:
+            logger.debug('Getting queue from existing TweeterProcess')
             self.queue = self.tweeter_process.queue
         else:
+            logger.debug('Creating new queue')
             self.queue = mp.Queue()
+            # print(self.queue.get())
             self.tweeter_process = TweeterProcess(self.queue, default_prob, seed, self.api)
+            #print("tweeter_process")
 
     def _put(self, command, *args, **kwargs):
+        if self.disable_tweeting:
+            return
         try:
             self.queue.put((command, args, kwargs), False)
         except Queue.Full:
@@ -280,11 +291,12 @@ class Tweeter(object):
         self._put('tweet_canned', *args, **kwargs)
 
     def start(self):
-        if not self.tweeter_process.is_alive():
+        if not self.tweeter_process.is_alive() and not self.disable_tweeting:
             self.tweeter_process.start()
 
     def __enter__(self):
         self.start()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()

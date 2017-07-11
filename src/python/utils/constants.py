@@ -18,7 +18,7 @@ ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '../../..'))
 
 STARTED = datetime.now()
 
-DEFAULT_LOG_LEVEL = logging.INFO
+DEFAULT_LOG_LEVEL = logging.NOTSET
 
 # defining PixyCam sensory variables
 PIXY_MIN_X = 0
@@ -74,11 +74,11 @@ MAX_Y_WALL = 75
 
 TWEET_DEFAULT_PROB = 1.0
 TWEET_HIT_PROB = 1.0
-TWEET_FIRE_PROB = 0.001
-TWEET_SEARCH_PROB = 1.0
-TWEET_CHASE_PROB = 1.0
-TWEET_ROAM_PROB = 1.0
-TWEET_WALL_PROB = 1.0
+TWEET_FIRE_PROB = 0.01
+TWEET_SEARCH_PROB = 0.001
+TWEET_CHASE_PROB = 0.01
+TWEET_ROAM_PROB = 0.001
+TWEET_WALL_PROB = 0.001
 
 
 class Situation(Enum):

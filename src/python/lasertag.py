@@ -348,15 +348,24 @@ if __name__ == '__main__':
              'Default is {}.'.format(logging.getLevelName(constants.DEFAULT_LOG_LEVEL))
     )
 
+    parser.add_argument(
+        '--tweeting-disabled', '-t', action='store_true', default=False,
+        help='Disable tweeting in this run'
+    )
+
     parsed_args = parser.parse_args()
-
+    
     set_log_level(constants.DEFAULT_LOG_LEVEL)
-
+    #logger.debug('successfully logging debug things')
     if parsed_args.debug:
         set_log_level(logging.DEBUG)
         tweet_path = os.path.join(LOG_DIR, 'tweets')
         logger.info('Entering debug mode (tweets will be saved in %s)', tweet_path)
         Tweeter.api = DummyTweepyApi(tweet_path)
+   
+    disable_tweeting = parsed_args.tweeting_disabled
+    if disable_tweeting:
+        logger.debug('Tweeting disabled')
 
     if parsed_args.verbosity >= 3:
         set_log_level(logging.NOTSET)
@@ -373,16 +382,19 @@ if __name__ == '__main__':
     try:
         # pixy.pixy_cam_set_brightness(20)
         robot_state = setup()
-        with LaserController() as controller, Tweeter() as tweeter:
+        #with open('not_a_file.txt', 'w') as f:
+        with LaserController(disable_tweeting=disable_tweeting) as controller, Tweeter(disable_tweeting=disable_tweeting) as tweeter:
             robot_state.laser = controller
             robot_state.tweeter = tweeter
+        
             robot_state.tweeter.tweet_canned(Situation.STARTING_UP, 1.0)
 
             if not parsed_args.debug and not parsed_args.skip_prewarm:
                 input('\n\n\nPress enter to GO!\n\n\n')
 
             logger.info('Robot starting!')
-            controller.fire_at_will()
+            
+            robot_state.laser.fire_at_will()
             while True:
                 ok = loop(robot_state)
                 if not ok:
@@ -390,4 +402,7 @@ if __name__ == '__main__':
     finally:
         pixy.pixy_close()
         motors.setSpeeds(0, 0)
+        #controller.stand_down()
+        #tweeter.stop()
+
         logger.info("Robot Shutdown Completed")

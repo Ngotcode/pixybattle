@@ -47,7 +47,6 @@ def teardown_module():
 
 def read_statuses(tweeter):
     with open(tweeter.api.path) as f:
-        print(f.read().strip().split('\n'))
         return f.read().strip().split('\n')
 
 

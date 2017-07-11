@@ -61,9 +61,9 @@ class LaserController(object):
     """Class for controlling the behaviour of the laser in a fire-and-forget fashion."""
     __instance = None
 
-    def __init__(self):
+    def __init__(self, disable_tweeting=False):
         self.interface = LaserInterface()
-        self.laser_process = LaserProcess(self.interface)
+        self.laser_process = LaserProcess(self.interface, disable_tweeting=disable_tweeting)
         self.logger = logging.getLogger('{}.{}'.format(__name__, type(self).__name__))
 
     def start(self):
@@ -159,7 +159,8 @@ class LaserController(object):
         """Stop firing the laser and close the underlying process. Blocks until the process is closed."""
         self.interface.stood_down = True
         self.logger.debug('Stopping laser process')
-        self.laser_process.join()
+        if self.laser_process.is_alive():
+            self.laser_process.join()
         self.__instance = None
 
     @classmethod
@@ -299,12 +300,13 @@ class LaserInterface(object):
 
 
 class LaserProcess(Process):
-    def __init__(self, laser_interface):
+    def __init__(self, laser_interface, disable_tweeting=False):
         super(LaserProcess, self).__init__()
         self.interface = laser_interface
         self.ser = None
         self.logger = None
         self.tweeter = None
+        self.disable_tweeting = disable_tweeting
 
     def run(self):
         self.logger = logging.getLogger('{}.{}'.format(__name__, type(self).__name__))
@@ -325,7 +327,7 @@ class LaserProcess(Process):
         if self.ser is None:
             self.ser = PixySerial.get()
         self.interface.stood_down = False
-        self.tweeter = Tweeter()
+        self.tweeter = Tweeter(disable_tweeting=self.disable_tweeting)
 
     def _check_hit(self):
         if self.interface.is_disabled:
