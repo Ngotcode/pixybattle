@@ -1,4 +1,6 @@
 [
   {"msg": "You sunk my battleship!"},
-  {"path": "media/aiyiyi.gif"}
+  {"path": "media/aiyiyi.gif"},
+  {"msg": "Whoops! Flat tire!"},
+  {"path": "media/battery.gif"}
 ]
