@@ -1,5 +1,7 @@
 [
   {"msg": "Wall!! Turn Away!!"},
   {"path": "media/mexico.gif"},
-  {"path": "media/gameThroneWall.gif"}
+  {"path": "media/gameThroneWall.gif"},
+  {"path": "media/randomWall.gif"},
+  {"msg": "Waiting for the security gate to open... #janeliasecurity"}
 ]
