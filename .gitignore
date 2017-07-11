@@ -166,3 +166,4 @@ logs/*
 src/python/tests/output/*
 
 *keys.json
+backup/

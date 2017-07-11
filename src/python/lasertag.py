@@ -208,6 +208,7 @@ def loop(robot_state):
             else:
             ## If enough turn for enough time go to roam state
                 if time.time() - robot_state.search_starting_time > robot_state.max_turning_time:
+                    pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, PIXY_RCS_CENTER_POS)
                     robot_state.state = "roam"
                     logger.info('search to roam')
                     robot_state.tweeter.tweet_canned(Situation.RANDOM, constants.TWEET_ROAM_PROB)
@@ -223,6 +224,7 @@ def loop(robot_state):
         block = scan_scene("chase")
         if block is None:
             logger.debug(block)
+            pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, PIXY_RCS_CENTER_POS)
             robot_state.state = "roam"
             logger.info("chase to roam")
             robot_state.tweeter.tweet_canned(Situation.RANDOM, constants.TWEET_ROAM_PROB)
@@ -244,6 +246,7 @@ def loop(robot_state):
             robot_state.previous_time = robot_state.current_time
             l_drive, r_drive = drive(robot_state)
             if robot_state.advance < .5:
+                pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, PIXY_RCS_CENTER_POS)
                 robot_state.switch_to_search(wall = False)
                 motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
                                  int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
@@ -268,6 +271,7 @@ def loop(robot_state):
                     robot_state.diff_drive = 0 #abs(float(pan_error) / 300+.4)
                     robot_state.advance = logit(dist_error, .025, 400)
                     if robot_state.advance < .05:
+                        pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, PIXY_RCS_CENTER_POS)
                         robot_state.switch_to_search(wall = False)
                         motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
                                          int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
@@ -276,6 +280,7 @@ def loop(robot_state):
                     else:
                         l_drive, r_drive = drive(robot_state)
                 else:
+                    pixy.pixy_rcs_set_position(PIXY_RCS_PAN_CHANNEL, PIXY_RCS_CENTER_POS)
                     robot_state.switch_to_search(wall = True)
                     motors.setSpeeds(int( robot_state.turn_direction * .2 * MAX_MOTOR_SPEED),
                                      int(-robot_state.turn_direction * .2 * MAX_MOTOR_SPEED))
