@@ -1,5 +1,7 @@
 [
   {"msg": "Where's my next target?"},
   {"msg": "Going around, going around"},
-  {"msg": "You spin me right round #likearecord"}
+  {"msg": "You spin me right round #likearecord"},
+  {"msg": "Where in the world is Carmen Sandiego?"}
+  {"path": "media/searchAnm.gif"},
 ]
