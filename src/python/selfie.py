@@ -43,11 +43,15 @@ if __name__ == '__main__':
         imager = ImageCreator()
         timer = input('Timer (empty to take photo immediately): ')
         time.sleep(0 if not timer else float(timer))
+        logger.debug('Taking picture')
         blocks = PixyBlock.from_pixy()
         imager.save_file(blocks, parsed_args.path, parsed_args.title)
         logger.critical('Photo taken and saved to {}')
         if parsed_args.post_tweet:
+            logger.info('Tweeting, may take a few seconds...')
             with Tweeter() as tweeter:
+                time.sleep(1)
                 tweeter.tweet_blocks(blocks, p=1.0, msg=parsed_args.title)
+                time.sleep(2)
     finally:
         pixy.pixy_close()
