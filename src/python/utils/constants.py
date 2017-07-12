@@ -20,6 +20,8 @@ STARTED = datetime.now()
 
 DEFAULT_LOG_LEVEL = logging.NOTSET
 
+BATTLE_LENGTH_SECONDS = 3*60 + 5  # 3 minutes + a few seconds' buffer
+
 # defining PixyCam sensory variables
 PIXY_MIN_X = 0
 PIXY_MAX_X = 319
