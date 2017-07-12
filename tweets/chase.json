@@ -2,7 +2,10 @@
   {"msg": "Autobots, roll out!"},
   {"msg": "Number One, engage!"},
   {"path": "media/gypsy_danger.gif"},
+  {"path": "media/randomR.gif"},
+  {"path": "media/StarWars_rollin.gif"},
   {"path": "media/battle_c3po.gif"},
   {"path": "media/iron_giant.gif"},
-  {"path": "media/stairwarChase.gif"}
+  {"path": "media/stairwarChase.gif"},
+  {"path": "media/bender-kill-all-humans.gif"}
 ]
