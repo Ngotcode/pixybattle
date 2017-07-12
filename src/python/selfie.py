@@ -7,7 +7,7 @@ from six.moves import input
 
 from pixy import pixy
 
-from utils.bot_logging import ImageCreator
+from utils.bot_logging import ImageCreator, Tweeter
 from utils.vision import PixyBlock
 
 
@@ -34,6 +34,7 @@ if __name__ == '__main__':
 
     parser.add_argument('path', default='selfie.png', help='Path to save the file')
     parser.add_argument('--title', '-t', default='', help='Title for the picture')
+    parser.add_argument('--post-tweet', '-p', action='store_true', default=False, help='Tweet picture')
 
     parsed_args = parser.parse_args()
 
@@ -45,5 +46,8 @@ if __name__ == '__main__':
         blocks = PixyBlock.from_pixy()
         imager.save_file(blocks, parsed_args.path, parsed_args.title)
         logger.critical('Photo taken and saved to {}')
+        if parsed_args.post_tweet:
+            with Tweeter() as tweeter:
+                tweeter.tweet_blocks(blocks, p=1.0, msg=parsed_args.title)
     finally:
         pixy.pixy_close()
