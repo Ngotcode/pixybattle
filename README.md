@@ -1,3 +1,10 @@
+# Team 4 'Guardians of Janelia: An HHMI Group'
+## Winners of the Janelia Research Campus 2017 Pixy Battle
+
+The entry point is `lasertag.py`: much of the code is in `utils/`
+
+---
+
 # Pixy Battle
 
 Welcome to the Pixy Battle!
