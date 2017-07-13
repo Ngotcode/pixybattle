@@ -1,7 +1,9 @@
 # Team 4 'Guardians of Janelia: An HHMI Group'
 ## Winners of the Janelia Research Campus 2017 Pixy Battle
 
-The entry point is `lasertag.py`: much of the code is in `utils/`
+The entry point is `src/python/lasertag.py`: much of the code is in `src/python/utils/`
+
+The final competition code is in branch `zwei` (`master` includes some experimental changes which should have affected performance but we decided not to run with on the day).
 
 ---
 
